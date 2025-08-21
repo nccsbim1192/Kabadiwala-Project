@@ -1,0 +1,331 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Login - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white text-center">
+                <h4 class="mb-0">
+                    <i class="fas fa-sign-in-alt me-2"></i>Welcome Back
+                </h4>
+                <p class="mb-0 mt-1">Sign in to your account</p>
+            </div>
+            <div class="card-body p-4">
+                <!-- Social Login Section -->
+                <div class="text-center mb-4">
+                    <h6 class="text-muted mb-3">Quick Login</h6>
+                    <button class="btn btn-outline-primary me-2 mb-2" type="button">
+                        <i class="fab fa-google me-1"></i>Google
+                    </button>
+                    <button class="btn btn-outline-info mb-2" type="button">
+                        <i class="fab fa-facebook me-1"></i>Facebook
+                    </button>
+                </div>
+                
+                <div class="row">
+                    <div class="col">
+                        <hr>
+                    </div>
+                    <div class="col-auto">
+                        <span class="text-muted">or</span>
+                    </div>
+                    <div class="col">
+                        <hr>
+                    </div>
+                </div>
+
+                <form method="post" novalidate id="loginForm">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-user me-1"></i>Username
+                        </label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="username" 
+                            name="username" 
+                            placeholder="Enter your username"
+                            required
+                            autocomplete="username"
+                        >
+                        <div class="invalid-feedback">
+                            Please enter a valid username.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock me-1"></i>Password
+                        </label>
+                        <div class="input-group">
+                            <input 
+                                type="password" 
+                                class="form-control" 
+                                id="password" 
+                                name="password" 
+                                placeholder="Enter your password"
+                                required
+                                autocomplete="current-password"
+                                minlength="6"
+                            >
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                                <i class="fas fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
+                        <div class="invalid-feedback">
+                            Password must be at least 6 characters long.
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="rememberMe" name="remember_me">
+                        <label class="form-check-label" for="rememberMe">
+                            Remember me for 30 days
+                        </label>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                        </button>
+                    </div>
+                </form>
+                
+                <hr class="my-4">
+                
+                <div class="text-center">
+                    <p class="mb-2">Don't have an account yet?</p>
+                    <a href="{% url 'register' %}" class="btn btn-outline-success">
+                        <i class="fas fa-user-plus me-2"></i>Create Account
+                    </a>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        <a href="#" class="text-decoration-none" data-bs-toggle="modal" data-bs-target="#forgotPasswordModal">
+                            Forgot your password?
+                        </a>
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Login Info -->
+        <div class="card mt-3 border-0 bg-light">
+            <div class="card-body text-center py-3">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    New to Online Kawadiwala? Join our platform to start recycling and earning!
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="modal fade" id="forgotPasswordModal" tabindex="-1" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="forgotPasswordModalLabel">
+                    <i class="fas fa-key me-2"></i>Reset Password
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="forgotPasswordForm">
+                    <div class="mb-3">
+                        <label for="emailReset" class="form-label">
+                            <i class="fas fa-envelope me-1"></i>Email Address
+                        </label>
+                        <input type="email" class="form-control" id="emailReset" placeholder="Enter your email" required>
+                        <div class="form-text">We'll send you a password reset link.</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendResetLink">
+                    <i class="fas fa-paper-plane me-1"></i>Send Reset Link
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Password toggle functionality
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordField = document.getElementById('password');
+    const eyeIcon = document.getElementById('eyeIcon');
+    
+    if (togglePassword && passwordField && eyeIcon) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordField.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordField.setAttribute('type', type);
+            
+            // Toggle eye icon
+            if (type === 'password') {
+                eyeIcon.classList.remove('fa-eye-slash');
+                eyeIcon.classList.add('fa-eye');
+            } else {
+                eyeIcon.classList.remove('fa-eye');
+                eyeIcon.classList.add('fa-eye-slash');
+            }
+        });
+    }
+
+    // Form validation
+    const form = document.getElementById('loginForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!form.checkValidity()) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Show error message
+                showAlert('Please fill in all required fields correctly.', 'error');
+            } else {
+                // Show loading state
+                showLoading(submitBtn);
+            }
+            form.classList.add('was-validated');
+        });
+
+        // Real-time validation
+        const inputs = form.querySelectorAll('input[required]');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.checkValidity()) {
+                    this.classList.remove('is-invalid');
+                    this.classList.add('is-valid');
+                } else {
+                    this.classList.remove('is-valid');
+                    this.classList.add('is-invalid');
+                }
+            });
+        });
+    }
+
+    // Social login handlers
+    document.querySelectorAll('.btn-outline-primary, .btn-outline-info').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const provider = this.textContent.trim();
+            showAlert(`${provider} login coming soon!`, 'info');
+        });
+    });
+
+    // Forgot password handler
+    const sendResetBtn = document.getElementById('sendResetLink');
+    if (sendResetBtn) {
+        sendResetBtn.addEventListener('click', function() {
+            const email = document.getElementById('emailReset').value;
+            if (email && isValidEmail(email)) {
+                showLoading(this);
+                setTimeout(() => {
+                    hideLoading(this);
+                    showAlert('Password reset link sent to your email!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('forgotPasswordModal')).hide();
+                }, 2000);
+            } else {
+                showAlert('Please enter a valid email address.', 'error');
+            }
+        });
+    }
+
+    // Utility functions
+    function showAlert(message, type) {
+        const alertClass = type === 'error' ? 'alert-danger' : 
+                          type === 'success' ? 'alert-success' : 'alert-info';
+        
+        const alertHTML = `
+            <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                                   type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+        
+        const container = document.querySelector('.container');
+        container.insertAdjacentHTML('afterbegin', alertHTML);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+            const alert = container.querySelector('.alert');
+            if (alert) {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }
+        }, 5000);
+    }
+
+    function showLoading(button) {
+        const originalText = button.innerHTML;
+        button.dataset.originalText = originalText;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Please wait...';
+        button.disabled = true;
+    }
+
+    function hideLoading(button) {
+        button.innerHTML = button.dataset.originalText;
+        button.disabled = false;
+    }
+
+    function isValidEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+});
+</script>
+
+<style>
+/* Custom styles for enhanced login */
+.btn-outline-primary:hover,
+.btn-outline-info:hover {
+    transform: translateY(-2px);
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.was-validated .form-control:valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73l.4-.4L4.4 8l3.7-3.7-.4-.4L4.4 7.2z'/%3e%3c/svg%3e");
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.card {
+    border-radius: 15px;
+    overflow: hidden;
+}
+
+.btn {
+    border-radius: 8px;
+}
+</style>
+{% endblock %}

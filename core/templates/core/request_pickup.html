@@ -1,0 +1,621 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Request Pickup - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <!-- Header Section -->
+    <div class="row justify-content-center mb-4">
+        <div class="col-md-10">
+            <div class="text-center">
+                <h2 class="text-success mb-2">
+                    <i class="fas fa-recycle me-2"></i>Request Waste Pickup
+                </h2>
+                <p class="lead text-muted mb-0">Schedule a convenient pickup time and earn money from your recyclables</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <!-- Pickup Request Form -->
+        <div class="col-lg-8 col-md-10">
+            <div class="card shadow-lg">
+                <div class="card-header bg-gradient-success text-white text-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus me-2"></i>New Pickup Request
+                    </h5>
+                    <small class="opacity-75">Fill in the details below to schedule your pickup</small>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" novalidate id="pickupForm">
+                        {% csrf_token %}
+                        
+                        <!-- Waste Information Section -->
+                        <div class="mb-4">
+                            <h6 class="text-success mb-3">
+                                <i class="fas fa-box me-2"></i>Waste Information
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.waste_category.id_for_label }}" class="form-label">
+                                            <i class="fas fa-tags me-1"></i>Waste Category <span class="text-danger">*</span>
+                                        </label>
+                                        <select 
+                                            class="form-select {% if form.waste_category.errors %}is-invalid{% endif %}" 
+                                            id="{{ form.waste_category.id_for_label }}" 
+                                            name="{{ form.waste_category.name }}" 
+                                            required
+                                            onchange="calculatePrice()"
+                                        >
+                                            <option value="">Choose waste category...</option>
+                                            {% for choice in form.waste_category.field.queryset %}
+                                                <option value="{{ choice.id }}" data-rate="{{ choice.rate_per_kg }}" 
+                                                    {% if form.waste_category.value == choice.id|stringformat:'s' %}selected{% endif %}>
+                                                    {{ choice.name }} - Rs. {{ choice.rate_per_kg }}/kg
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        {% if form.waste_category.errors %}
+                                            <div class="invalid-feedback">{{ form.waste_category.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Select the type of waste you want to recycle</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.estimated_weight_kg.id_for_label }}" class="form-label">
+                                            <i class="fas fa-weight-hanging me-1"></i>Estimated Weight (kg) <span class="text-danger">*</span>
+                                        </label>
+                                        <input 
+                                            type="number" 
+                                            class="form-control {% if form.estimated_weight_kg.errors %}is-invalid{% endif %}" 
+                                            id="{{ form.estimated_weight_kg.id_for_label }}" 
+                                            name="{{ form.estimated_weight_kg.name }}" 
+                                            step="0.1" 
+                                            min="0.1" 
+                                            max="1000"
+                                            placeholder="Enter weight in kg"
+                                            value="{{ form.estimated_weight_kg.value|default:'' }}"
+                                            required
+                                            oninput="calculatePrice()"
+                                        >
+                                        {% if form.estimated_weight_kg.errors %}
+                                            <div class="invalid-feedback">{{ form.estimated_weight_kg.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Approximate weight of your recyclable waste</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Price Estimation Display -->
+                            <div id="estimated-price" class="alert alert-success d-none">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <h6 class="mb-0">
+                                            <i class="fas fa-calculator me-2"></i>Estimated Earnings
+                                        </h6>
+                                        <small class="opacity-75">Based on current market rates</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <h4 class="mb-0 text-success" id="price-amount">Rs. 0.00</h4>
+                                        <small class="text-muted" id="rate-breakdown"></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pickup Schedule Section -->
+                        <div class="mb-4">
+                            <h6 class="text-success mb-3">
+                                <i class="fas fa-calendar-alt me-2"></i>Pickup Schedule
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.pickup_date.id_for_label }}" class="form-label">
+                                            <i class="fas fa-calendar-day me-1"></i>Pickup Date <span class="text-danger">*</span>
+                                        </label>
+                                        <input 
+                                            type="date" 
+                                            class="form-control {% if form.pickup_date.errors %}is-invalid{% endif %}" 
+                                            id="{{ form.pickup_date.id_for_label }}" 
+                                            name="{{ form.pickup_date.name }}" 
+                                            value="{{ form.pickup_date.value|default:'' }}"
+                                            required
+                                            onchange="validateDate()"
+                                        >
+                                        {% if form.pickup_date.errors %}
+                                            <div class="invalid-feedback">{{ form.pickup_date.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Choose a date from today onwards</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="{{ form.pickup_time.id_for_label }}" class="form-label">
+                                            <i class="fas fa-clock me-1"></i>Pickup Time <span class="text-danger">*</span>
+                                        </label>
+                                        <input 
+                                            type="time" 
+                                            class="form-control {% if form.pickup_time.errors %}is-invalid{% endif %}" 
+                                            id="{{ form.pickup_time.id_for_label }}" 
+                                            name="{{ form.pickup_time.name }}" 
+                                            value="{{ form.pickup_time.value|default:'' }}"
+                                            required
+                                            onchange="validateTime()"
+                                        >
+                                        {% if form.pickup_time.errors %}
+                                            <div class="invalid-feedback">{{ form.pickup_time.errors.0 }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">Available hours: 9:00 AM - 6:00 PM</small>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Business Hours Info -->
+                            <div class="alert alert-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-info-circle fa-2x me-3"></i>
+                                    <div>
+                                        <h6 class="mb-1">Business Hours</h6>
+                                        <p class="mb-0">We provide pickup services Monday to Saturday, 9:00 AM to 6:00 PM. Sunday pickups available on request.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Address & Instructions Section -->
+                        <div class="mb-4">
+                            <h6 class="text-success mb-3">
+                                <i class="fas fa-map-marker-alt me-2"></i>Pickup Location & Instructions
+                            </h6>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.address.id_for_label }}" class="form-label">
+                                    <i class="fas fa-home me-1"></i>Pickup Address <span class="text-danger">*</span>
+                                </label>
+                                <textarea 
+                                    class="form-control {% if form.address.errors %}is-invalid{% endif %}" 
+                                    id="{{ form.address.id_for_label }}" 
+                                    name="{{ form.address.name }}" 
+                                    rows="3" 
+                                    placeholder="Enter complete pickup address with landmarks"
+                                    required
+                                >{{ form.address.value|default:'' }}</textarea>
+                                {% if form.address.errors %}
+                                    <div class="invalid-feedback">{{ form.address.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">Include house/apartment number, street, area, and nearby landmarks</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.special_instructions.id_for_label }}" class="form-label">
+                                    <i class="fas fa-sticky-note me-1"></i>Special Instructions (Optional)
+                                </label>
+                                <textarea 
+                                    class="form-control" 
+                                    id="{{ form.special_instructions.id_for_label }}" 
+                                    name="{{ form.special_instructions.name }}" 
+                                    rows="2" 
+                                    placeholder="Any special instructions for the collector (e.g., gate code, specific time, etc.)"
+                                >{{ form.special_instructions.value|default:'' }}</textarea>
+                                <small class="form-text text-muted">Help our collectors find you easily</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Terms and Conditions -->
+                        <div class="mb-4">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+                                        <label class="form-check-label" for="agreeTerms">
+                                            I agree to the <a href="#" class="text-success">pickup terms and conditions</a> and understand that:
+                                        </label>
+                                    </div>
+                                    <ul class="small text-muted mt-2 mb-0">
+                                        <li>Payment is based on actual weight measured during pickup</li>
+                                        <li>Collectors may refuse contaminated or non-recyclable materials</li>
+                                        <li>Pickup times may vary by ±30 minutes from scheduled time</li>
+                                        <li>Cancellation must be done at least 2 hours before pickup time</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Submit Buttons -->
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <button type="submit" class="btn btn-success btn-lg w-100" id="submitBtn">
+                                    <i class="fas fa-paper-plane me-2"></i>Submit Request
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'customer_dashboard' %}" class="btn btn-secondary btn-lg w-100">
+                                    <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Info Sidebar -->
+        <div class="col-lg-4 col-md-10 mt-4 mt-lg-0">
+            <!-- Current Rates -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Current Market Rates
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if waste_categories %}
+                        <div class="list-group list-group-flush">
+                            {% for category in waste_categories %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ category.name }}</strong>
+                                    <br><small class="text-muted">{{ category.description|default:"Standard recyclable"|truncatechars:30 }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-success fs-6">Rs. {{ category.rate_per_kg }}/kg</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-3">
+                            <p class="text-muted">No categories available</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- How It Works -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>How It Works
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ol class="list-unstyled mb-0">
+                        <li class="d-flex mb-3">
+                            <div class="step-number bg-success text-white rounded-circle me-3">1</div>
+                            <div>
+                                <strong>Submit Request</strong>
+                                <br><small class="text-muted">Fill this form with your waste details</small>
+                            </div>
+                        </li>
+                        <li class="d-flex mb-3">
+                            <div class="step-number bg-success text-white rounded-circle me-3">2</div>
+                            <div>
+                                <strong>Get Assigned</strong>
+                                <br><small class="text-muted">A nearby collector will accept your request</small>
+                            </div>
+                        </li>
+                        <li class="d-flex mb-3">
+                            <div class="step-number bg-success text-white rounded-circle me-3">3</div>
+                            <div>
+                                <strong>Pickup & Weigh</strong>
+                                <br><small class="text-muted">Collector arrives and weighs your waste</small>
+                            </div>
+                        </li>
+                        <li class="d-flex">
+                            <div class="step-number bg-success text-white rounded-circle me-3">4</div>
+                            <div>
+                                <strong>Get Paid</strong>
+                                <br><small class="text-muted">Receive payment based on actual weight</small>
+                            </div>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Tips -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>Pro Tips
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Clean and separate materials for better rates</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Collect more to maximize pickup value</small>
+                        </li>
+                        <li class="mb-2">
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Schedule during business hours for faster service</small>
+                        </li>
+                        <li>
+                            <i class="fas fa-check text-success me-2"></i>
+                            <small>Provide clear address with landmarks</small>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set minimum date to today
+    const dateInput = document.getElementById('{{ form.pickup_date.id_for_label }}');
+    if (dateInput) {
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.min = today;
+    }
+
+    // Initialize form validation
+    initializeFormValidation();
+    
+    // Calculate price on page load if values exist
+    calculatePrice();
+});
+
+function calculatePrice() {
+    const categorySelect = document.getElementById('{{ form.waste_category.id_for_label }}');
+    const weightInput = document.getElementById('{{ form.estimated_weight_kg.id_for_label }}');
+    const priceDisplay = document.getElementById('estimated-price');
+    const priceAmount = document.getElementById('price-amount');
+    const rateBreakdown = document.getElementById('rate-breakdown');
+    
+    if (!categorySelect || !weightInput || !priceDisplay) return;
+    
+    const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+    const weight = parseFloat(weightInput.value);
+    
+    if (selectedOption && selectedOption.value && weight && weight > 0) {
+        const rate = parseFloat(selectedOption.dataset.rate);
+        if (rate) {
+            const total = (rate * weight).toFixed(2);
+            priceAmount.textContent = `Rs. ${total}`;
+            rateBreakdown.textContent = `${weight} kg × Rs. ${rate}/kg`;
+            priceDisplay.classList.remove('d-none');
+        } else {
+            priceDisplay.classList.add('d-none');
+        }
+    } else {
+        priceDisplay.classList.add('d-none');
+    }
+}
+
+function validateDate() {
+    const dateInput = document.getElementById('{{ form.pickup_date.id_for_label }}');
+    const today = new Date();
+    const selectedDate = new Date(dateInput.value);
+    
+    if (selectedDate < today) {
+        dateInput.setCustomValidity('Pickup date cannot be in the past');
+        dateInput.classList.add('is-invalid');
+    } else {
+        dateInput.setCustomValidity('');
+        dateInput.classList.remove('is-invalid');
+        dateInput.classList.add('is-valid');
+    }
+}
+
+function validateTime() {
+    const timeInput = document.getElementById('{{ form.pickup_time.id_for_label }}');
+    const dateInput = document.getElementById('{{ form.pickup_date.id_for_label }}');
+    
+    if (!timeInput.value) return;
+    
+    const time = timeInput.value;
+    const [hours, minutes] = time.split(':').map(Number);
+    
+    // Check business hours (9 AM to 6 PM)
+    if (hours < 9 || hours > 18) {
+        timeInput.setCustomValidity('Pickup time must be between 9:00 AM and 6:00 PM');
+        timeInput.classList.add('is-invalid');
+        return;
+    }
+    
+    // Check if today and time is in the past
+    if (dateInput.value) {
+        const today = new Date();
+        const selectedDate = new Date(dateInput.value);
+        
+        if (selectedDate.toDateString() === today.toDateString()) {
+            const currentTime = today.getHours() * 60 + today.getMinutes();
+            const selectedTime = hours * 60 + minutes;
+            
+            if (selectedTime < currentTime) {
+                timeInput.setCustomValidity('Pickup time cannot be in the past for today');
+                timeInput.classList.add('is-invalid');
+                return;
+            }
+        }
+    }
+    
+    timeInput.setCustomValidity('');
+    timeInput.classList.remove('is-invalid');
+    timeInput.classList.add('is-valid');
+}
+
+function initializeFormValidation() {
+    const form = document.getElementById('pickupForm');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    if (!form) return;
+    
+    form.addEventListener('submit', function(e) {
+        const agreeTerms = document.getElementById('agreeTerms');
+        
+        if (!form.checkValidity() || !agreeTerms.checked) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            if (!agreeTerms.checked) {
+                showAlert('Please agree to the terms and conditions', 'error');
+            } else {
+                showAlert('Please fill in all required fields correctly', 'error');
+            }
+        } else {
+            showLoading(submitBtn);
+        }
+        
+        form.classList.add('was-validated');
+    });
+    
+    // Real-time validation for required fields
+    const inputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+    inputs.forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.checkValidity()) {
+                this.classList.remove('is-invalid');
+                this.classList.add('is-valid');
+            } else {
+                this.classList.remove('is-valid');
+                this.classList.add('is-invalid');
+            }
+        });
+    });
+}
+
+function showLoading(button) {
+    const originalText = button.innerHTML;
+    button.dataset.originalText = originalText;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Submitting Request...';
+    button.disabled = true;
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+
+<style>
+/* Custom styles for pickup request form */
+.bg-gradient-success {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+}
+
+.card {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.step-number {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.list-group-item {
+    border-left: none;
+    border-right: none;
+}
+
+.list-group-item:first-child {
+    border-top: none;
+}
+
+.list-group-item:last-child {
+    border-bottom: none;
+}
+
+.was-validated .form-control:valid,
+.was-validated .form-select:valid {
+    border-color: #28a745;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 8'%3e%3cpath fill='%2328a745' d='m2.3 6.73l.4-.4L4.4 8l3.7-3.7-.4-.4L4.4 7.2z'/%3e%3c/svg%3e");
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 0 15px;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .step-number {
+        width: 25px;
+        height: 25px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Loading animation */
+.fa-spinner.fa-spin {
+    animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Form validation styles */
+.invalid-feedback {
+    display: block;
+}
+
+.form-check-input:invalid {
+    border-color: #dc3545;
+}
+
+.alert {
+    border-radius: 10px;
+}
+</style>
+{% endblock %}

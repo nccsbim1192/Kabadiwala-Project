@@ -1,0 +1,577 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Admin Dashboard - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="text-success mb-1">
+            <i class="fas fa-tachometer-alt me-2"></i>Admin Dashboard
+          </h2>
+          <p class="lead text-muted mb-0">System Overview & Management</p>
+        </div>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-success" onclick="refreshData()">
+            <i class="fas fa-sync-alt me-1"></i>Refresh
+          </button>
+          <a href="/admin/" class="btn btn-success" target="_blank">
+            <i class="fas fa-tools me-1"></i>Django Admin
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Key Metrics Cards -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-primary text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-users fa-2x me-2"></i>
+            <h3 class="mb-0">{{ user_stats.total|default:0 }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Total Users</p>
+          <small class="opacity-75">All registered users</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-success text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-user fa-2x me-2"></i>
+            <h3 class="mb-0">{{ user_stats.customers|default:0 }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Customers</p>
+          <small class="opacity-75">Waste sellers</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-info text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-truck fa-2x me-2"></i>
+            <h3 class="mb-0">{{ user_stats.collectors|default:0 }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Collectors</p>
+          <small class="opacity-75">Waste collectors</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-warning text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-clipboard-list fa-2x me-2"></i>
+            <h3 class="mb-0">{{ pickup_stats.total|default:0 }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Total Pickups</p>
+          <small class="opacity-75">All pickup requests</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pickup Statistics -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-secondary text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-check-circle fa-2x me-2"></i>
+            <h4 class="mb-0">{{ pickup_stats.completed|default:0 }}</h4>
+          </div>
+          <p class="mb-0 fw-semibold">Completed</p>
+          <small class="opacity-75">Successfully finished</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-danger text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-clock fa-2x me-2"></i>
+            <h4 class="mb-0">{{ pickup_stats.pending|default:0 }}</h4>
+          </div>
+          <p class="mb-0 fw-semibold">Pending</p>
+          <small class="opacity-75">Awaiting assignment</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-dark text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-calendar-alt fa-2x me-2"></i>
+            <h4 class="mb-0">{{ pickup_stats.this_month|default:0 }}</h4>
+          </div>
+          <p class="mb-0 fw-semibold">This Month</p>
+          <small class="opacity-75">Current month requests</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-success text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-weight-hanging fa-2x me-2"></i>
+            <h4 class="mb-0">{{ total_transactions|floatformat:1|default:0 }}</h4>
+          </div>
+          <p class="mb-0 fw-semibold">Total Weight (kg)</p>
+          <small class="opacity-75">Recycled materials</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Data Tables -->
+  <div class="row mb-4">
+    <!-- Recent Pickup Requests -->
+    <div class="col-lg-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-list me-2"></i>Recent Pickup Requests
+          </h6>
+          <small>Last 10 requests</small>
+        </div>
+        <div class="card-body p-0">
+          {% if recent_pickups %}
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for pickup in recent_pickups %}
+                  <tr>
+                    <td>
+                      <small class="text-muted">{{ pickup.pickup_date|date:"M d" }}</small>
+                    </td>
+                    <td>
+                      <strong>{{ pickup.customer.username }}</strong>
+                      <br><small class="text-muted">{{ pickup.customer.email|truncatechars:20 }}</small>
+                    </td>
+                    <td>
+                      <span class="badge bg-light text-dark">{{ pickup.waste_category.name }}</span>
+                    </td>
+                    <td>
+                      {% if pickup.status == 'completed' %}
+                        <span class="badge bg-success">Completed</span>
+                      {% elif pickup.status == 'pending' %}
+                        <span class="badge bg-warning">Pending</span>
+                      {% elif pickup.status == 'assigned' %}
+                        <span class="badge bg-info">Assigned</span>
+                      {% elif pickup.status == 'in_progress' %}
+                        <span class="badge bg-primary">In Progress</span>
+                      {% else %}
+                        <span class="badge bg-secondary">{{ pickup.status|capfirst }}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+              <p class="text-muted">No recent pickup requests found.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Users -->
+    <div class="col-lg-6 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-users me-2"></i>Recent Users
+          </h6>
+          <small>Last 5 registrations</small>
+        </div>
+        <div class="card-body p-0">
+          {% if recent_users %}
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>User</th>
+                    <th>Role</th>
+                    <th>Joined</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in recent_users %}
+                  <tr>
+                    <td>
+                      <strong>{{ user.username }}</strong>
+                      <br><small class="text-muted">{{ user.email|truncatechars:25 }}</small>
+                    </td>
+                    <td>
+                      {% if user.role == 'customer' %}
+                        <span class="badge bg-success">Customer</span>
+                      {% elif user.role == 'collector' %}
+                        <span class="badge bg-primary">Collector</span>
+                      {% else %}
+                        <span class="badge bg-danger">Admin</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <small class="text-muted">{{ user.date_joined|date:"M d, Y" }}</small>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
+              <p class="text-muted">No recent user registrations.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Waste Categories Management -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-recycle me-2"></i>Waste Categories Management
+          </h6>
+          <div>
+            <button class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+              <i class="fas fa-plus me-1"></i>Add Category
+            </button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          {% if waste_categories %}
+            <div class="table-responsive">
+              <table class="table table-striped mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Category Name</th>
+                    <th>Rate per KG</th>
+                    <th>Description</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for cat in waste_categories %}
+                  <tr>
+                    <td>
+                      <strong>{{ cat.name }}</strong>
+                    </td>
+                    <td>
+                      <span class="fw-bold text-success">Rs. {{ cat.rate_per_kg }}</span>
+                    </td>
+                    <td>
+                      <small class="text-muted">{{ cat.description|default:"No description"|truncatechars:40 }}</small>
+                    </td>
+                    <td>
+                      {% if cat.is_active %}
+                        <span class="badge bg-success">Active</span>
+                      {% else %}
+                        <span class="badge bg-danger">Inactive</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <small class="text-muted">{{ cat.created_at|date:"M d, Y" }}</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-sm" title="Edit">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" title="Delete">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-box-open fa-3x text-muted mb-3"></i>
+              <p class="text-muted">No waste categories found.</p>
+              <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
+                <i class="fas fa-plus me-1"></i>Add First Category
+              </button>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-0 bg-light">
+        <div class="card-body text-center py-4">
+          <h6 class="text-muted mb-3">Quick Actions</h6>
+          <div class="d-flex justify-content-center flex-wrap gap-2">
+            <a href="/admin/auth/user/" class="btn btn-outline-primary" target="_blank">
+              <i class="fas fa-users me-1"></i>Manage Users
+            </a>
+            <a href="/admin/core/pickuprequest/" class="btn btn-outline-success" target="_blank">
+              <i class="fas fa-clipboard-list me-1"></i>Manage Pickups
+            </a>
+            <a href="/admin/core/wastecategory/" class="btn btn-outline-warning" target="_blank">
+              <i class="fas fa-recycle me-1"></i>Manage Categories
+            </a>
+            <a href="/admin/core/transaction/" class="btn btn-outline-info" target="_blank">
+              <i class="fas fa-money-bill-wave me-1"></i>View Transactions
+            </a>
+            <button class="btn btn-outline-secondary" onclick="exportData()">
+              <i class="fas fa-download me-1"></i>Export Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Add Category Modal -->
+<div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="addCategoryModalLabel">
+          <i class="fas fa-plus me-2"></i>Add New Waste Category
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addCategoryForm">
+          <div class="mb-3">
+            <label for="categoryName" class="form-label">Category Name</label>
+            <input type="text" class="form-control" id="categoryName" placeholder="e.g., Paper, Plastic, Metal" required>
+          </div>
+          <div class="mb-3">
+            <label for="categoryRate" class="form-label">Rate per KG (Rs.)</label>
+            <input type="number" class="form-control" id="categoryRate" step="0.01" min="0" placeholder="0.00" required>
+          </div>
+          <div class="mb-3">
+            <label for="categoryDescription" class="form-label">Description</label>
+            <textarea class="form-control" id="categoryDescription" rows="3" placeholder="Brief description of this waste category"></textarea>
+          </div>
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="categoryActive" checked>
+            <label class="form-check-label" for="categoryActive">
+              Active (available for pickup requests)
+            </label>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" onclick="addCategory()">
+          <i class="fas fa-plus me-1"></i>Add Category
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+function refreshData() {
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+    button.disabled = true;
+    
+    // Simulate refresh (in real app, you'd reload the page or fetch new data)
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function addCategory() {
+    const form = document.getElementById('addCategoryForm');
+    const name = document.getElementById('categoryName').value;
+    const rate = document.getElementById('categoryRate').value;
+    const description = document.getElementById('categoryDescription').value;
+    const active = document.getElementById('categoryActive').checked;
+    
+    if (!name || !rate) {
+        showAlert('Please fill in all required fields.', 'error');
+        return;
+    }
+    
+    // In a real app, you'd send this data to your backend
+    console.log('Adding category:', { name, rate, description, active });
+    
+    // Show success message
+    showAlert('Category will be added! (This is a demo)', 'success');
+    
+    // Close modal and reset form
+    bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
+    form.reset();
+}
+
+function exportData() {
+    showAlert('Data export feature will be implemented soon!', 'info');
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    // Auto-hide after 3 seconds
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 3000);
+}
+</script>
+
+<style>
+/* Custom styles for admin dashboard */
+.stat-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 15px;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #17a2b8, #117a8b);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #ffc107, #d39e00);
+}
+
+.bg-gradient-danger {
+    background: linear-gradient(135deg, #dc3545, #a71d2a);
+}
+
+.bg-gradient-secondary {
+    background: linear-gradient(135deg, #6c757d, #495057);
+}
+
+.bg-gradient-dark {
+    background: linear-gradient(135deg, #343a40, #1d2124);
+}
+
+.card {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 0 15px;
+    }
+    
+    .stat-card h3, .stat-card h4 {
+        font-size: 1.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+}
+
+/* Animation for page load */
+.stat-card {
+    animation: slideInUp 0.5s ease-out;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-section bg-success text-white text-center py-5 mb-5 rounded">
+    <div class="container">
+        <h1 class="display-4 fw-bold">
+            <i class="fas fa-recycle me-3"></i>Online Kawadiwala
+        </h1>
+        <p class="lead fs-3">Digital Revolution in Waste Management</p>
+        <p class="fs-5">Connecting communities for sustainable recycling across Nepal</p>
+        
+        {% if not user.is_authenticated %}
+        <div class="mt-4">
+            <a href="{% url 'register' %}" class="btn btn-light btn-lg me-3">
+                <i class="fas fa-user-plus me-2"></i>Get Started
+            </a>
+            <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                <i class="fas fa-sign-in-alt me-2"></i>Login
+            </a>
+        </div>
+        {% else %}
+        <div class="mt-4">
+            <a href="{% url 'dashboard' %}" class="btn btn-light btn-lg">
+                <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row mb-5">
+    <div class="col-12 text-center mb-4">
+        <h2 class="display-6 fw-bold text-success">Why Choose Online Kawadiwala?</h2>
+        <p class="lead">Experience the future of waste collection</p>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card feature-card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="feature-icon bg-success text-white rounded-circle mx-auto mb-3">
+                    <i class="fas fa-calendar-check fa-2x"></i>
+                </div>
+                <h5 class="card-title fw-bold">Easy Scheduling</h5>
+                <p class="card-text">Schedule waste pickup at your convenience with our user-friendly platform. No more waiting for kabadiwalas!</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card feature-card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="feature-icon bg-warning text-dark rounded-circle mx-auto mb-3">
+                    <i class="fas fa-coins fa-2x"></i>
+                </div>
+                <h5 class="card-title fw-bold">Transparent Pricing</h5>
+                <p class="card-text">Fair and transparent pricing based on current market rates. Know exactly what you'll earn before pickup.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card feature-card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="feature-icon bg-info text-white rounded-circle mx-auto mb-3">
+                    <i class="fas fa-mobile-alt fa-2x"></i>
+                </div>
+                <h5 class="card-title fw-bold">Digital Payments</h5>
+                <p class="card-text">Secure digital transactions with instant payment confirmation. No more cash handling hassles.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card feature-card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="feature-icon bg-success text-white rounded-circle mx-auto mb-3">
+                    <i class="fas fa-leaf fa-2x"></i>
+                </div>
+                <h5 class="card-title fw-bold">Environmental Impact</h5>
+                <p class="card-text">Track your contribution to environmental conservation. See how much you're helping save the planet!</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card feature-card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="feature-icon bg-primary text-white rounded-circle mx-auto mb-3">
+                    <i class="fas fa-shield-alt fa-2x"></i>
+                </div>
+                <h5 class="card-title fw-bold">Verified Collectors</h5>
+                <p class="card-text">All collectors are verified and trained professionals. Your safety and security are our priority.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4 col-md-6 mb-4">
+        <div class="card feature-card h-100 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="feature-icon bg-danger text-white rounded-circle mx-auto mb-3">
+                    <i class="fas fa-headset fa-2x"></i>
+                </div>
+                <h5 class="card-title fw-bold">24/7 Support</h5>
+                <p class="card-text">Round-the-clock customer support to help you with any queries or issues. We're always here for you.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Section -->
+<div class="row text-center mb-5">
+    <div class="col-12 mb-4">
+        <h2 class="display-6 fw-bold text-success">Our Impact</h2>
+        <p class="lead">Growing community of environmentally conscious citizens</p>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card bg-primary text-white h-100">
+            <div class="card-body">
+                <i class="fas fa-users fa-3x mb-3"></i>
+                <h2 class="display-5 fw-bold">{{ total_users|default:0 }}</h2>
+                <p class="fs-5">Registered Users</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card bg-info text-white h-100">
+            <div class="card-body">
+                <i class="fas fa-truck fa-3x mb-3"></i>
+                <h2 class="display-5 fw-bold">{{ total_pickups|default:0 }}</h2>
+                <p class="fs-5">Total Pickups</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card bg-success text-white h-100">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-3x mb-3"></i>
+                <h2 class="display-5 fw-bold">{{ completed_pickups|default:0 }}</h2>
+                <p class="fs-5">Completed</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-4">
+        <div class="card stat-card bg-warning text-dark h-100">
+            <div class="card-body">
+                <i class="fas fa-recycle fa-3x mb-3"></i>
+                <h2 class="display-5 fw-bold">{{ waste_categories.count|default:0 }}</h2>
+                <p class="fs-5">Waste Types</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Current Rates Section -->
+{% if waste_categories %}
+<div class="row mb-5">
+    <div class="col-12 text-center mb-4">
+        <h2 class="display-6 fw-bold text-success">Current Market Rates</h2>
+        <p class="lead">Transparent pricing for all waste categories</p>
+    </div>
+    
+    <div class="col-lg-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-success">
+                            <tr>
+                                <th><i class="fas fa-tag me-2"></i>Waste Category</th>
+                                <th><i class="fas fa-rupee-sign me-2"></i>Rate per KG</th>
+                                <th><i class="fas fa-info-circle me-2"></i>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for category in waste_categories %}
+                            <tr>
+                                <td class="fw-semibold">{{ category.name }}</td>
+                                <td class="text-success fw-bold">Rs. {{ category.rate_per_kg }}</td>
+                                <td class="text-muted">{{ category.description|default:"Standard rate" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- How It Works Section -->
+<div class="row mb-5">
+    <div class="col-12 text-center mb-4">
+        <h2 class="display-6 fw-bold text-success">How It Works</h2>
+        <p class="lead">Simple steps to start recycling responsibly</p>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 text-center mb-4">
+        <div class="step-item">
+            <div class="step-number bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">1</span>
+            </div>
+            <div class="step-icon text-success mb-3">
+                <i class="fas fa-user-plus fa-3x"></i>
+            </div>
+            <h5 class="fw-bold">Register Account</h5>
+            <p class="text-muted">Create your account as Customer or Collector with valid details</p>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 text-center mb-4">
+        <div class="step-item">
+            <div class="step-number bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">2</span>
+            </div>
+            <div class="step-icon text-success mb-3">
+                <i class="fas fa-calendar-plus fa-3x"></i>
+            </div>
+            <h5 class="fw-bold">Schedule Pickup</h5>
+            <p class="text-muted">Request waste collection at your preferred date and time</p>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 text-center mb-4">
+        <div class="step-item">
+            <div class="step-number bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">3</span>
+            </div>
+            <div class="step-icon text-success mb-3">
+                <i class="fas fa-truck fa-3x"></i>
+            </div>
+            <h5 class="fw-bold">Collection</h5>
+            <p class="text-muted">Verified collector arrives and weighs your waste materials</p>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 text-center mb-4">
+        <div class="step-item">
+            <div class="step-number bg-success text-white rounded-circle mx-auto mb-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">4</span>
+            </div>
+            <div class="step-icon text-success mb-3">
+                <i class="fas fa-money-bill-wave fa-3x"></i>
+            </div>
+            <h5 class="fw-bold">Get Paid</h5>
+            <p class="text-muted">Receive instant payment based on actual weight and current rates</p>
+        </div>
+    </div>
+</div>
+
+<!-- Call to Action -->
+{% if not user.is_authenticated %}
+<div class="row">
+    <div class="col-lg-8 mx-auto text-center">
+        <div class="card cta-card bg-gradient-success text-white shadow-lg">
+            <div class="card-body p-5">
+                <h2 class="display-6 fw-bold mb-3">Ready to Make a Difference?</h2>
+                <p class="lead mb-4">Join thousands of environmentally conscious citizens in Nepal who are making recycling easy, profitable, and transparent.</p>
+                <div class="d-grid gap-2 d-md-flex justify-content-md-center">
+                    <a href="{% url 'register' %}" class="btn btn-light btn-lg me-md-2">
+                        <i class="fas fa-rocket me-2"></i>Start Recycling Now
+                    </a>
+                    <a href="{% url 'login' %}" class="btn btn-outline-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>Already a Member?
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,489 @@
+{% extends 'core/base.html' %}
+{% load mathfilters %}
+
+{% block title %}Collector Dashboard - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-success mb-1">
+                        <i class="fas fa-truck me-2"></i>Collector Dashboard
+                    </h2>
+                    <p class="lead text-muted mb-0">Welcome back, {{ user.username }}!</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-success" onclick="refreshData()">
+                        <i class="fas fa-sync-alt me-1"></i>Refresh
+                    </button>
+                    <span class="badge bg-success fs-6">{{ user.get_role_display }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-gradient-primary text-white shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center align-items-center mb-2">
+                        <i class="fas fa-clipboard-list fa-2x me-2"></i>
+                        <h3 class="mb-0">{{ available_pickups.count|default:0 }}</h3>
+                    </div>
+                    <p class="mb-0 fw-semibold">Available Pickups</p>
+                    <small class="opacity-75">Ready to assign</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-gradient-success text-white shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center align-items-center mb-2">
+                        <i class="fas fa-tasks fa-2x me-2"></i>
+                        <h3 class="mb-0">{{ assigned_pickups.count|default:0 }}</h3>
+                    </div>
+                    <p class="mb-0 fw-semibold">My Assigned</p>
+                    <small class="opacity-75">Currently handling</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-gradient-warning text-white shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center align-items-center mb-2">
+                        <i class="fas fa-rupee-sign fa-2x me-2"></i>
+                        <h3 class="mb-0">{{ total_earnings|default:0|floatformat:0 }}</h3>
+                    </div>
+                    <p class="mb-0 fw-semibold">Total Earnings</p>
+                    <small class="opacity-75">Commission earned</small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-gradient-info text-white shadow-sm">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center align-items-center mb-2">
+                        <i class="fas fa-check-circle fa-2x me-2"></i>
+                        <h3 class="mb-0">{{ completion_rate|default:0 }}</h3>
+                    </div>
+                    <p class="mb-0 fw-semibold">Completed</p>
+                    <small class="opacity-75">Successfully finished</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Available Pickup Requests -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Available Pickup Requests
+                    </h5>
+                    <span class="badge bg-light text-primary">{{ available_pickups.count|default:0 }} Available</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if available_pickups %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Customer</th>
+                                        <th>Waste Type & Category</th>
+                                        <th>Weight (Est.)</th>
+                                        <th>Date & Time</th>
+                                        <th>Location</th>
+                                        <th>Earnings</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for pickup in available_pickups %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-circle bg-success text-white me-2">
+                                                    {{ pickup.customer.username|first|upper }}
+                                                </div>
+                                                <div>
+                                                    <strong>{{ pickup.customer.username }}</strong>
+                                                    <br><small class="text-muted">{{ pickup.customer.phone|default:"No phone" }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex flex-column">
+                                                <span class="badge bg-success mb-1">{{ pickup.waste_category.name }}</span>
+                                                <small class="text-muted">
+                                                    Rs. {{ pickup.waste_category.rate_per_kg }}/kg
+                                                    <br>{{ pickup.waste_category.description|default:"No description"|truncatechars:30 }}
+                                                </small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong class="text-primary">{{ pickup.estimated_weight_kg }} kg</strong>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex flex-column">
+                                                <strong>{{ pickup.pickup_date|date:"M d, Y" }}</strong>
+                                                <small class="text-muted">{{ pickup.pickup_time|time:"H:i" }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted" title="{{ pickup.address }}">
+                                                {{ pickup.address|truncatechars:30 }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex flex-column">
+                                                <strong class="text-success">Rs. {{ pickup.estimated_price|floatformat:2 }}</strong>
+                                                <small class="text-muted">Your cut: Rs. {% widthratio pickup.estimated_price 10 1 %}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-success" onclick="assignPickup({{ pickup.id }})">
+                                                    <i class="fas fa-hand-paper me-1"></i>Accept
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#detailsModal{{ pickup.id }}">
+                                                    <i class="fas fa-eye me-1"></i>Details
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Details Modal for each pickup -->
+                                    <div class="modal fade" id="detailsModal{{ pickup.id }}" tabindex="-1" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header bg-info text-white">
+                                                    <h5 class="modal-title">
+                                                        <i class="fas fa-info-circle me-2"></i>Pickup Details
+                                                    </h5>
+                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Customer:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.customer.username }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Email:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.customer.email }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Phone:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.customer.phone|default:"Not provided" }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Waste Type:</strong></div>
+                                                        <div class="col-sm-6">
+                                                            <span class="badge bg-success">{{ pickup.waste_category.name }}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Category Description:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.waste_category.description|default:"No description available" }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Rate per KG:</strong></div>
+                                                        <div class="col-sm-6">Rs. {{ pickup.waste_category.rate_per_kg }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Estimated Weight:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.estimated_weight_kg }} kg</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Pickup Date:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.pickup_date|date:"l, F d, Y" }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Pickup Time:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.pickup_time|time:"H:i A" }}</div>
+                                                    </div>
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Full Address:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.address }}</div>
+                                                    </div>
+                                                    {% if pickup.special_instructions %}
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Special Instructions:</strong></div>
+                                                        <div class="col-sm-6">{{ pickup.special_instructions }}</div>
+                                                    </div>
+                                                    {% endif %}
+                                                    <div class="row mb-2">
+                                                        <div class="col-sm-6"><strong>Customer Payment:</strong></div>
+                                                        <div class="col-sm-6 text-success fw-bold">Rs. {{ pickup.estimated_price|floatformat:2 }}</div>
+                                                    </div>
+                                                    <div class="row">
+                                                        <div class="col-sm-6"><strong>Your Commission (10%):</strong></div>
+                                                        <div class="col-sm-6 text-primary fw-bold">Rs. {% widthratio pickup.estimated_price 10 1 %}</div>
+                                                    </div>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                                    <button type="button" class="btn btn-success" onclick="assignPickup({{ pickup.id }})">
+                                                        <i class="fas fa-hand-paper me-1"></i>Accept This Pickup
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted mb-2">No Available Pickup Requests</h5>
+                            <p class="text-muted">Check back later for new pickup opportunities!</p>
+                            <button class="btn btn-outline-success" onclick="refreshData()">
+                                <i class="fas fa-sync-alt me-1"></i>Refresh Now
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- My Assigned Pickups & Today's Schedule -->
+        <div class="col-lg-4">
+            <!-- My Assigned Pickups -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-clipboard-check me-2"></i>My Assigned Pickups
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if assigned_pickups %}
+                        <div class="list-group list-group-flush">
+                            {% for pickup in assigned_pickups|slice:":5" %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">{{ pickup.customer.username }}</h6>
+                                    <p class="mb-1 text-muted small">
+                                        <span class="badge bg-success me-1">{{ pickup.waste_category.name }}</span>
+                                        {{ pickup.estimated_weight_kg }}kg
+                                    </p>
+                                    <small class="text-muted">{{ pickup.pickup_date|date:"M d" }} at {{ pickup.pickup_time|time:"H:i" }}</small>
+                                </div>
+                                <div class="text-end">
+                                    {% if pickup.status == 'assigned' %}
+                                        <span class="badge bg-warning">Assigned</span>
+                                    {% elif pickup.status == 'in_progress' %}
+                                        <span class="badge bg-primary">In Progress</span>
+                                    {% endif %}
+                                    <br><small class="text-success">Rs. {{ pickup.estimated_price|floatformat:0 }}</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% if assigned_pickups.count > 5 %}
+                        <div class="card-footer text-center">
+                            <small class="text-muted">Showing 5 of {{ assigned_pickups.count }} pickups</small>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-clipboard fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No assigned pickups yet</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Today's Schedule -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-calendar-day me-2"></i>Today's Schedule
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if today_pickups %}
+                        <div class="list-group list-group-flush">
+                            {% for pickup in today_pickups %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <h6 class="mb-1">{{ pickup.pickup_time|time:"H:i A" }}</h6>
+                                    <small class="text-muted">{{ pickup.status|capfirst }}</small>
+                                </div>
+                                <p class="mb-1">
+                                    {{ pickup.customer.username }} - 
+                                    <span class="badge bg-success">{{ pickup.waste_category.name }}</span>
+                                </p>
+                                <small class="text-muted">{{ pickup.address|truncatechars:40 }}</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-calendar-check fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No pickups scheduled for today</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- JavaScript -->
+<script>
+function refreshData() {
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+    button.disabled = true;
+    
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function assignPickup(pickupId) {
+    if (confirm('Are you sure you want to accept this pickup request?')) {
+        const button = event.target.closest('button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Accepting...';
+        button.disabled = true;
+        
+        // Redirect to assign URL
+        window.location.href = `/assign-pickup/${pickupId}/`;
+    }
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+
+<style>
+/* ... (keep all your existing styles) ... */
+.stat-card {
+    transition: all 0.3s ease;
+    border: none;
+    border-radius: 15px;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+}
+
+.bg-gradient-success {
+    background: linear-gradient(135deg, #28a745, #1e7e34);
+}
+
+.bg-gradient-warning {
+    background: linear-gradient(135deg, #ffc107, #d39e00);
+}
+
+.bg-gradient-info {
+    background: linear-gradient(135deg, #17a2b8, #117a8b);
+}
+
+.avatar-circle {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.card {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.card-header {
+    border-radius: 15px 15px 0 0 !important;
+    border: none;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.table td {
+    vertical-align: middle;
+    font-size: 0.9rem;
+}
+
+.badge {
+    font-size: 0.75rem;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.modal-body .row {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.modal-body .row:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container-fluid {
+        padding: 0 15px;
+    }
+    
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+    
+    .btn-group .btn {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .stat-card h3 {
+        font-size: 1.5rem;
+    }
+}
+
+.fa-spinner.fa-spin {
+    animation: fa-spin 2s infinite linear;
+}
+
+@keyframes fa-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
