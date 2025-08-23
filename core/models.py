@@ -70,11 +70,16 @@ class PickupRequest(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
+        from decimal import Decimal
+        
         # Calculate estimated price
         self.estimated_price = self.estimated_weight_kg * self.waste_category.rate_per_kg
         
         # Calculate actual price if actual weight is provided
         if self.actual_weight_kg:
+            # Ensure actual_weight_kg is a Decimal for calculation
+            if isinstance(self.actual_weight_kg, str):
+                self.actual_weight_kg = Decimal(self.actual_weight_kg)
             self.actual_price = self.actual_weight_kg * self.waste_category.rate_per_kg
             
         # Set completed_at when status changes to completed

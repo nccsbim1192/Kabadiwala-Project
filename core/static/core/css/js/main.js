@@ -239,7 +239,7 @@ function showPageLoading() {
         left: 0;
         width: 100%;
         height: 100%;
-        background: rgba(40, 167, 69, 0.9);
+        background: rgba(53, 173, 85, 0.9);
         z-index: 9999;
         display: flex;
     `;

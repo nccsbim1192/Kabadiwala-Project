@@ -13,28 +13,6 @@
                 <p class="mb-0 mt-1">Sign in to your account</p>
             </div>
             <div class="card-body p-4">
-                <!-- Social Login Section -->
-                <div class="text-center mb-4">
-                    <h6 class="text-muted mb-3">Quick Login</h6>
-                    <button class="btn btn-outline-primary me-2 mb-2" type="button">
-                        <i class="fab fa-google me-1"></i>Google
-                    </button>
-                    <button class="btn btn-outline-info mb-2" type="button">
-                        <i class="fab fa-facebook me-1"></i>Facebook
-                    </button>
-                </div>
-                
-                <div class="row">
-                    <div class="col">
-                        <hr>
-                    </div>
-                    <div class="col-auto">
-                        <span class="text-muted">or</span>
-                    </div>
-                    <div class="col">
-                        <hr>
-                    </div>
-                </div>
 
                 <form method="post" novalidate id="loginForm">
                     {% csrf_token %}
@@ -215,13 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Social login handlers
-    document.querySelectorAll('.btn-outline-primary, .btn-outline-info').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const provider = this.textContent.trim();
-            showAlert(`${provider} login coming soon!`, 'info');
-        });
-    });
+    // Social login handlers - removed placeholder alerts since OAuth is now functional
 
     // Forgot password handler
     const sendResetBtn = document.getElementById('sendResetLink');

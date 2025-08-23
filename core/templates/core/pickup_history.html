@@ -19,7 +19,7 @@
                     <button class="btn btn-outline-success" onclick="exportHistory()">
                         <i class="fas fa-download me-1"></i>Export
                     </button>
-                    <a href="{% url 'customer_dashboard' %}" class="btn btn-secondary">
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
                     </a>
                 </div>
@@ -493,7 +493,17 @@ function downloadReceipt(pickupId) {
 }
 
 function exportHistory() {
-    showAlert('Export history feature will be available soon!', 'info');
+    // For admin users, redirect to admin export with all data
+    if ('{{ user.role }}' === 'admin' || '{{ user.is_staff }}' === 'True') {
+        window.open('/admin-manage/export-data/', '_blank');
+    } else {
+        // For regular users, export their own data
+        const params = new URLSearchParams({
+            user_filter: '{{ user.id }}',
+            status: 'all'
+        });
+        window.open('/admin-manage/export-data/?' + params.toString(), '_blank');
+    }
 }
 
 function showAlert(message, type) {

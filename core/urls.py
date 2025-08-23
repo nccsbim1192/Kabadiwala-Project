@@ -31,6 +31,14 @@ urlpatterns = [
     path('update-pickup/<int:pickup_id>/', views.update_pickup, name='update_pickup'),
     path('cancel-pickup/<int:pickup_id>/', views.cancel_pickup, name='cancel_pickup'),
     
+    # Admin management URLs
+    path('admin-manage/update-pickup/<int:pickup_id>/', views.admin_update_pickup_status, name='admin_update_pickup_status'),
+    path('admin-manage/approve-transaction/<int:transaction_id>/', views.admin_approve_transaction, name='admin_approve_transaction'),
+    path('admin-manage/bulk-update-pickups/', views.admin_bulk_update_pickups, name='admin_bulk_update_pickups'),
+    path('admin-manage/export-data/', views.export_data_pdf, name='export_data_pdf'),
+    path('admin-manage/edit-category/<int:category_id>/', views.edit_category, name='edit_category'),
+    path('admin-manage/delete-category/<int:category_id>/', views.delete_category, name='delete_category'),
+    
     # User Management
     path('delete-account/', views.delete_account, name='delete_account'),
     

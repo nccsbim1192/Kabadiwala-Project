@@ -28,8 +28,9 @@
 
     <!-- Statistics Cards -->
     <div class="row mb-4">
+        <!-- Available Pickups -->
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card stat-card bg-gradient-primary text-white shadow-sm">
+            <div class="card stat-card bg-gradient-primary text-white shadow-sm h-100">
                 <div class="card-body text-center">
                     <div class="d-flex justify-content-center align-items-center mb-2">
                         <i class="fas fa-clipboard-list fa-2x me-2"></i>
@@ -41,41 +42,49 @@
             </div>
         </div>
         
+        <!-- Assigned Pickups -->
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card stat-card bg-gradient-success text-white shadow-sm">
+            <div class="card stat-card bg-gradient-success text-white shadow-sm h-100">
                 <div class="card-body text-center">
                     <div class="d-flex justify-content-center align-items-center mb-2">
                         <i class="fas fa-tasks fa-2x me-2"></i>
                         <h3 class="mb-0">{{ assigned_pickups.count|default:0 }}</h3>
                     </div>
-                    <p class="mb-0 fw-semibold">My Assigned</p>
+                    <p class="mb-0 fw-semibold">Assigned to Me</p>
                     <small class="opacity-75">Currently handling</small>
                 </div>
             </div>
         </div>
         
+        <!-- Total Earnings -->
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card stat-card bg-gradient-warning text-white shadow-sm">
+            <div class="card stat-card bg-gradient-warning text-white shadow-sm h-100">
                 <div class="card-body text-center">
                     <div class="d-flex justify-content-center align-items-center mb-2">
                         <i class="fas fa-rupee-sign fa-2x me-2"></i>
-                        <h3 class="mb-0">{{ total_earnings|default:0|floatformat:0 }}</h3>
+                        <h3 class="mb-0">Rs {{ total_earnings|default:0|floatformat:2 }}</h3>
                     </div>
                     <p class="mb-0 fw-semibold">Total Earnings</p>
-                    <small class="opacity-75">Commission earned</small>
+                    <small class="opacity-75">Total commission earned</small>
                 </div>
             </div>
         </div>
         
+        <!-- Completion Rate -->
         <div class="col-lg-3 col-md-6 mb-3">
-            <div class="card stat-card bg-gradient-info text-white shadow-sm">
+            <div class="card stat-card bg-gradient-info text-white shadow-sm h-100">
                 <div class="card-body text-center">
-                    <div class="d-flex justify-content-center align-items-center mb-2">
-                        <i class="fas fa-check-circle fa-2x me-2"></i>
-                        <h3 class="mb-0">{{ completion_rate|default:0 }}</h3>
+                    <div class="d-flex flex-column align-items-center">
+                        <div class="position-relative mb-2">
+                            <div class="progress-circle" data-value="{{ completion_rate|default:0 }}" data-size="60" data-thickness="6" data-animation-duration="1000">
+                                <span class="h4 mb-0 fw-bold">{{ completion_rate|default:0 }}%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="mb-0 fw-semibold">Completion Rate</p>
+                            <small class="opacity-75">{{ completed_pickups|default:0 }} of {{ assigned_pickups.count|add:completed_pickups|default:0 }} completed</small>
+                        </div>
                     </div>
-                    <p class="mb-0 fw-semibold">Completed</p>
-                    <small class="opacity-75">Successfully finished</small>
                 </div>
             </div>
         </div>
@@ -341,8 +350,67 @@
 
 </div>
 
+<style>
+/* Progress Circle Styles */
+.progress-circle {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-circle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 6px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #fff;
+    transform: rotate(0deg);
+    animation: rotate 1s linear infinite;
+    opacity: 0;
+}
+
+.progress-circle[data-value]::before {
+    opacity: 1;
+    animation: none;
+    transform: rotate(calc(3.6deg * var(--progress, 0)));
+}
+
+@keyframes rotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Ensure cards have equal height */
+.stat-card {
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+</style>
+
 <!-- JavaScript -->
 <script>
+// Initialize progress circles
+document.addEventListener('DOMContentLoaded', function() {
+    const circles = document.querySelectorAll('.progress-circle');
+    circles.forEach(circle => {
+        const value = parseFloat(circle.getAttribute('data-value')) || 0;
+        const progress = Math.min(100, Math.max(0, value));
+        circle.style.setProperty('--progress', progress * 3.6);
+    });
+});
 function refreshData() {
     const button = event.target.closest('button');
     const originalText = button.innerHTML;

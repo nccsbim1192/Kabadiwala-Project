@@ -102,16 +102,58 @@ def customer_dashboard(request):
 @login_required
 def collector_dashboard(request):
     """Collector dashboard view"""
-    available_pickups = PickupRequest.objects.filter(status='pending').order_by('-created_at')
-    assigned_pickups = PickupRequest.objects.filter(collector=request.user).exclude(status='completed').order_by('-created_at')
-    today_pickups = PickupRequest.objects.filter(collector=request.user, pickup_date=date.today())
+    # Get available pickups (not assigned to any collector)
+    available_pickups = PickupRequest.objects.filter(
+        status='pending',
+        collector__isnull=True
+    ).order_by('-created_at')
     
-    # Calculate earnings (10% commission)
-    total_earnings = Transaction.objects.filter(collector=request.user).aggregate(
+    # Get pickups assigned to current collector
+    assigned_pickups = PickupRequest.objects.filter(
+        collector=request.user,
+        status__in=['assigned', 'in_progress']
+    ).order_by('-created_at')
+    
+    # Get today's pickups
+    today_pickups = PickupRequest.objects.filter(
+        collector=request.user, 
+        pickup_date=date.today(),
+        status__in=['assigned', 'in_progress']
+    )
+    
+    # Calculate total completed pickups
+    completed_pickups = PickupRequest.objects.filter(
+        collector=request.user, 
+        status='completed'
+    )
+    
+    # Calculate total pickups (assigned + completed)
+    total_pickups = PickupRequest.objects.filter(
+        collector=request.user
+    ).count()
+    
+    # Calculate completion rate (percentage)
+    completion_rate = 0
+    if total_pickups > 0:
+        completion_rate = round((completed_pickups.count() / total_pickups) * 100)
+    
+    # Calculate total earnings from transactions (10% commission)
+    total_earnings = Transaction.objects.filter(
+        collector=request.user,
+        is_paid=True
+    ).aggregate(
         total=Sum('collector_commission')
     )['total'] or 0
     
-    completion_rate = PickupRequest.objects.filter(collector=request.user, status='completed').count()
+    # If no transactions exist, calculate from completed pickups (10% of actual_price)
+    if total_earnings == 0:
+        from decimal import Decimal
+        completed_earnings = completed_pickups.filter(
+            actual_price__isnull=False
+        ).aggregate(
+            total=Sum('actual_price')
+        )['total'] or 0
+        total_earnings = completed_earnings * Decimal('0.10')
 
     context = {
         'available_pickups': available_pickups,
@@ -119,12 +161,17 @@ def collector_dashboard(request):
         'today_pickups': today_pickups,
         'total_earnings': total_earnings,
         'completion_rate': completion_rate,
+        'completed_pickups': completed_pickups.count(),
     }
     return render(request, 'core/dashboard_collector.html', context)
 
 @staff_member_required
 def admin_dashboard(request):
-    """Admin dashboard view"""
+    """Admin dashboard view - only for admin users"""
+    # Additional check to ensure only admin role users can access
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
     user_stats = {
         'total': User.objects.count(),
         'customers': User.objects.filter(role='customer').count(),
@@ -135,12 +182,20 @@ def admin_dashboard(request):
         'total': PickupRequest.objects.count(),
         'completed': PickupRequest.objects.filter(status='completed').count(),
         'pending': PickupRequest.objects.filter(status='pending').count(),
+        'assigned': PickupRequest.objects.filter(status='assigned').count(),
+        'in_progress': PickupRequest.objects.filter(status='in_progress').count(),
         'this_month': PickupRequest.objects.filter(created_at__month=timezone.now().month).count(),
     }
     
-    recent_pickups = PickupRequest.objects.select_related('customer', 'waste_category').order_by('-created_at')[:10]
+    # Get pickups that need admin attention
+    recent_pickups = PickupRequest.objects.select_related('customer', 'waste_category', 'collector').order_by('-created_at')[:15]
     recent_users = User.objects.order_by('-date_joined')[:5]
     waste_categories = WasteCategory.objects.all()
+    
+    # Get pending transactions for approval
+    pending_transactions = Transaction.objects.filter(
+        payment_status='pending'
+    ).select_related('pickup_request', 'customer', 'collector').order_by('-transaction_date')[:10]
     
     total_transactions = PickupRequest.objects.filter(
         status='completed'
@@ -153,6 +208,8 @@ def admin_dashboard(request):
         'recent_users': recent_users,
         'waste_categories': waste_categories,
         'total_transactions': total_transactions,
+        'pending_transactions': pending_transactions,
+        'status_choices': PickupRequest.STATUS_CHOICES,
     }
     return render(request, 'core/dashboard_admin.html', context)
 
@@ -287,3 +344,293 @@ def about(request):
 def contact(request):
     """Contact page"""
     return render(request, 'core/contact.html')
+
+# Admin-specific views for pickup management
+@staff_member_required
+def admin_update_pickup_status(request, pickup_id):
+    """Admin view to update pickup status"""
+    pickup = get_object_or_404(PickupRequest, id=pickup_id)
+    
+    if request.method == 'POST':
+        new_status = request.POST.get('status')
+        actual_weight = request.POST.get('actual_weight_kg')
+        
+        if new_status in dict(PickupRequest.STATUS_CHOICES):
+            pickup.status = new_status
+            
+            if actual_weight and new_status == 'completed':
+                pickup.actual_weight_kg = actual_weight
+                
+                # Create transaction if completed
+                if not hasattr(pickup, 'transaction'):
+                    Transaction.objects.create(
+                        pickup_request=pickup,
+                        customer=pickup.customer,
+                        collector=pickup.collector,
+                        amount=pickup.actual_price or pickup.estimated_price,
+                    )
+                    
+                    # Update customer's environmental impact
+                    impact, created = EnvironmentalImpact.objects.get_or_create(user=pickup.customer)
+                    impact.calculate_impact()
+            
+            pickup.save()
+            messages.success(request, f'Pickup #{pickup.id} status updated to {pickup.get_status_display()}')
+        else:
+            messages.error(request, 'Invalid status provided')
+    
+    return redirect('admin_dashboard')
+
+@staff_member_required
+def admin_approve_transaction(request, transaction_id):
+    """Admin view to approve/reject transactions"""
+    transaction = get_object_or_404(Transaction, id=transaction_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'approve':
+            transaction.is_paid = True
+            transaction.payment_status = 'completed'
+            transaction.save()
+            messages.success(request, f'Transaction #{transaction.id} approved and marked as paid')
+        elif action == 'reject':
+            transaction.payment_status = 'failed'
+            transaction.save()
+            messages.warning(request, f'Transaction #{transaction.id} rejected')
+    
+    return redirect('admin_dashboard')
+
+@staff_member_required
+def admin_bulk_update_pickups(request):
+    """Admin view for bulk pickup operations"""
+    if request.method == 'POST':
+        pickup_ids = request.POST.getlist('pickup_ids')
+        action = request.POST.get('bulk_action')
+        
+        if pickup_ids and action:
+            pickups = PickupRequest.objects.filter(id__in=pickup_ids)
+            
+            if action == 'mark_completed':
+                pickups.update(status='completed')
+                messages.success(request, f'{len(pickup_ids)} pickups marked as completed')
+            elif action == 'mark_cancelled':
+                pickups.update(status='cancelled')
+                messages.success(request, f'{len(pickup_ids)} pickups cancelled')
+            elif action == 'unassign':
+                pickups.update(collector=None, status='pending')
+                messages.success(request, f'{len(pickup_ids)} pickups unassigned')
+    
+    return redirect('admin_dashboard')
+
+@staff_member_required
+def export_data_pdf(request):
+    """Export pickup data as PDF with filters"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from django.http import HttpResponse
+    from datetime import datetime
+    import io
+    
+    # Get filter parameters
+    start_date = request.GET.get('start_date')
+    end_date = request.GET.get('end_date')
+    status = request.GET.get('status')
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+    user_filter = request.GET.get('user_filter')  # For filtering by specific user
+    
+    # Build queryset with filters
+    pickups = PickupRequest.objects.select_related('customer', 'collector', 'waste_category').all()
+    
+    if start_date:
+        pickups = pickups.filter(created_at__date__gte=start_date)
+    if end_date:
+        pickups = pickups.filter(created_at__date__lte=end_date)
+    if status and status != 'all':
+        pickups = pickups.filter(status=status)
+    if min_price:
+        pickups = pickups.filter(estimated_price__gte=min_price)
+    if max_price:
+        pickups = pickups.filter(estimated_price__lte=max_price)
+    if user_filter:
+        pickups = pickups.filter(customer_id=user_filter)
+    
+    pickups = pickups.order_by('-created_at')
+    
+    # Create PDF with landscape orientation for better table fit
+    from reportlab.lib.pagesizes import landscape
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=36, leftMargin=36, topMargin=72, bottomMargin=36)
+    
+    # Container for PDF elements
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        spaceAfter=30,
+        alignment=1,  # Center alignment
+        textColor=colors.darkgreen
+    )
+    title = Paragraph("Kawadiwala - Pickup Requests Export", title_style)
+    elements.append(title)
+    
+    # Export info
+    info_style = ParagraphStyle(
+        'InfoStyle',
+        parent=styles['Normal'],
+        fontSize=10,
+        spaceAfter=20,
+        alignment=1
+    )
+    
+    export_info = f"Export Date: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br/>"
+    export_info += f"Total Records: {pickups.count()}<br/>"
+    
+    if start_date or end_date:
+        date_range = f"Date Range: {start_date or 'Start'} to {end_date or 'End'}<br/>"
+        export_info += date_range
+    if status and status != 'all':
+        export_info += f"Status Filter: {status.title()}<br/>"
+    if min_price or max_price:
+        price_range = f"Price Range: Rs {min_price or '0'} to Rs {max_price or '∞'}<br/>"
+        export_info += price_range
+    
+    info_para = Paragraph(export_info, info_style)
+    elements.append(info_para)
+    elements.append(Spacer(1, 12))
+    
+    # Create table data
+    data = [['ID', 'Date', 'Customer', 'Collector', 'Category', 'Weight (kg)', 'Actual Weight (kg)', 'Price (Rs)', 'Status']]
+    
+    for pickup in pickups:
+        # Get collector name with proper fallback
+        collector_name = 'Not Assigned'
+        if pickup.collector:
+            collector_name = pickup.collector.get_full_name() or pickup.collector.username
+        
+        # Format price properly
+        price_value = pickup.actual_price or pickup.estimated_price or 0
+        
+        # Handle long status text properly
+        status_text = pickup.get_status_display()
+        if pickup.status == 'assigned':
+            status_text = 'Assigned'
+        
+        data.append([
+            str(pickup.id),
+            pickup.created_at.strftime('%Y-%m-%d'),
+            pickup.customer.get_full_name() or pickup.customer.username,
+            collector_name,
+            pickup.waste_category.name,
+            f"{pickup.estimated_weight_kg}",
+            f"{pickup.actual_weight_kg}" if pickup.actual_weight_kg else 'N/A',
+            f"{price_value}",
+            status_text
+        ])
+    
+    # Create table with optimized column widths to prevent text overflow
+    table = Table(data, colWidths=[0.4*inch, 0.8*inch, 0.9*inch, 0.9*inch, 0.8*inch, 0.9*inch, 1.1*inch, 0.9*inch, 1.2*inch])
+    
+    # Enhanced table style for better readability
+    table.setStyle(TableStyle([
+        # Header styling with smaller font to fit text
+        ('BACKGROUND', (0, 0), (-1, 0), colors.darkgreen),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+        ('TOPPADDING', (0, 0), (-1, 0), 10),
+        
+        # Data rows styling
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ALIGN', (0, 1), (0, -1), 'CENTER'),  # ID column center
+        ('ALIGN', (1, 1), (1, -1), 'CENTER'),  # Date column center
+        ('ALIGN', (2, 1), (2, -1), 'LEFT'),    # Customer column left
+        ('ALIGN', (3, 1), (3, -1), 'LEFT'),    # Collector column left
+        ('ALIGN', (4, 1), (4, -1), 'LEFT'),    # Category column left
+        ('ALIGN', (5, 1), (5, -1), 'CENTER'),  # Weight column center
+        ('ALIGN', (6, 1), (6, -1), 'CENTER'),  # Actual Weight column center
+        ('ALIGN', (7, 1), (7, -1), 'RIGHT'),   # Price column right
+        ('ALIGN', (8, 1), (8, -1), 'CENTER'),  # Status column center
+        
+        # Grid and borders - stronger borders to separate columns clearly
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.darkgreen),
+        ('LINEBEFORE', (5, 0), (5, -1), 1.5, colors.darkgray),  # Separate Weight column
+        ('LINEBEFORE', (6, 0), (6, -1), 1.5, colors.darkgray),  # Separate Actual Weight column
+        ('LINEBEFORE', (7, 0), (7, -1), 1.5, colors.darkgray),  # Separate Price column
+        
+        # Row backgrounds
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        
+        # Enhanced padding to prevent text overlap
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+        
+        # Text wrapping and overflow control
+        ('WORDWRAP', (0, 0), (-1, -1), 'LTR'),
+        
+        # Vertical alignment
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    
+    elements.append(table)
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Return PDF response
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    filename = f"kawadiwala_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+@staff_member_required
+def edit_category(request, category_id):
+    """Edit waste category"""
+    category = get_object_or_404(WasteCategory, id=category_id)
+    
+    if request.method == 'POST':
+        name = request.POST.get('categoryName')
+        rate_per_kg = request.POST.get('categoryRate')
+        description = request.POST.get('categoryDescription')
+        is_active = request.POST.get('categoryActive') == 'on'
+        
+        if name and rate_per_kg:
+            category.name = name
+            category.rate_per_kg = rate_per_kg
+            category.description = description or ''
+            category.is_active = is_active
+            category.save()
+            messages.success(request, f'Category "{name}" updated successfully!')
+        else:
+            messages.error(request, 'Name and rate are required fields.')
+    
+    return redirect('admin_dashboard')
+
+@staff_member_required
+def delete_category(request, category_id):
+    """Delete waste category"""
+    category = get_object_or_404(WasteCategory, id=category_id)
+    
+    if request.method == 'POST':
+        category_name = category.name
+        category.delete()
+        messages.success(request, f'Category "{category_name}" deleted successfully!')
+    
+    return redirect('admin_dashboard')

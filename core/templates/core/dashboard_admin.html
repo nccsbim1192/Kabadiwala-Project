@@ -140,13 +140,28 @@
   <!-- Recent Data Tables -->
   <div class="row mb-4">
     <!-- Recent Pickup Requests -->
-    <div class="col-lg-6 mb-4">
+    <div class="col-lg-8 mb-4">
       <div class="card shadow-sm">
         <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
           <h6 class="mb-0">
             <i class="fas fa-list me-2"></i>Recent Pickup Requests
           </h6>
-          <small>Last 10 requests</small>
+          <div class="d-flex gap-2">
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-tasks me-1"></i>Bulk Actions
+              </button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="bulkAction('mark_completed')">
+                  <i class="fas fa-check me-2"></i>Mark as Completed</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkAction('mark_cancelled')">
+                  <i class="fas fa-times me-2"></i>Cancel Selected</a></li>
+                <li><a class="dropdown-item" href="#" onclick="bulkAction('unassign')">
+                  <i class="fas fa-user-times me-2"></i>Unassign Collector</a></li>
+              </ul>
+            </div>
+            <small class="align-self-center">Last 15 requests</small>
+          </div>
         </div>
         <div class="card-body p-0">
           {% if recent_pickups %}
@@ -154,15 +169,27 @@
               <table class="table table-hover mb-0">
                 <thead class="table-light">
                   <tr>
+                    <th>
+                      <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                    </th>
+                    <th>ID</th>
                     <th>Date</th>
                     <th>Customer</th>
+                    <th>Collector</th>
                     <th>Category</th>
                     <th>Status</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {% for pickup in recent_pickups %}
                   <tr>
+                    <td>
+                      <input type="checkbox" name="pickup_ids" value="{{ pickup.id }}" class="pickup-checkbox">
+                    </td>
+                    <td>
+                      <strong>#{{ pickup.id }}</strong>
+                    </td>
                     <td>
                       <small class="text-muted">{{ pickup.pickup_date|date:"M d" }}</small>
                     </td>
@@ -171,7 +198,15 @@
                       <br><small class="text-muted">{{ pickup.customer.email|truncatechars:20 }}</small>
                     </td>
                     <td>
+                      {% if pickup.collector %}
+                        <span class="badge bg-info">{{ pickup.collector.username }}</span>
+                      {% else %}
+                        <span class="badge bg-secondary">Unassigned</span>
+                      {% endif %}
+                    </td>
+                    <td>
                       <span class="badge bg-light text-dark">{{ pickup.waste_category.name }}</span>
+                      <br><small class="text-muted">Rs {{ pickup.estimated_price }}</small>
                     </td>
                     <td>
                       {% if pickup.status == 'completed' %}
@@ -185,6 +220,22 @@
                       {% else %}
                         <span class="badge bg-secondary">{{ pickup.status|capfirst }}</span>
                       {% endif %}
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-primary btn-sm" 
+                                onclick="openStatusModal({{ pickup.id }}, '{{ pickup.status }}', '{{ pickup.customer.username }}', '{{ pickup.waste_category.name }}')" 
+                                title="Update Status">
+                          <i class="fas fa-edit"></i>
+                        </button>
+                        {% if pickup.status == 'in_progress' %}
+                        <button type="button" class="btn btn-outline-success btn-sm" 
+                                onclick="quickComplete({{ pickup.id }})" 
+                                title="Quick Complete">
+                          <i class="fas fa-check"></i>
+                        </button>
+                        {% endif %}
+                      </div>
                     </td>
                   </tr>
                   {% endfor %}
@@ -201,44 +252,55 @@
       </div>
     </div>
 
-    <!-- Recent Users -->
-    <div class="col-lg-6 mb-4">
+    <!-- Pending Transactions -->
+    <div class="col-lg-4 mb-4">
       <div class="card shadow-sm">
-        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
           <h6 class="mb-0">
-            <i class="fas fa-users me-2"></i>Recent Users
+            <i class="fas fa-money-bill-wave me-2"></i>Pending Transactions
           </h6>
-          <small>Last 5 registrations</small>
+          <small>Awaiting approval</small>
         </div>
         <div class="card-body p-0">
-          {% if recent_users %}
+          {% if pending_transactions %}
             <div class="table-responsive">
               <table class="table table-hover mb-0">
                 <thead class="table-light">
                   <tr>
-                    <th>User</th>
-                    <th>Role</th>
-                    <th>Joined</th>
+                    <th>ID</th>
+                    <th>Amount</th>
+                    <th>Collector</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {% for user in recent_users %}
+                  {% for transaction in pending_transactions %}
                   <tr>
                     <td>
-                      <strong>{{ user.username }}</strong>
-                      <br><small class="text-muted">{{ user.email|truncatechars:25 }}</small>
+                      <strong>#{{ transaction.id }}</strong>
+                      <br><small class="text-muted">{{ transaction.transaction_date|date:"M d" }}</small>
                     </td>
                     <td>
-                      {% if user.role == 'customer' %}
-                        <span class="badge bg-success">Customer</span>
-                      {% elif user.role == 'collector' %}
-                        <span class="badge bg-primary">Collector</span>
-                      {% else %}
-                        <span class="badge bg-danger">Admin</span>
-                      {% endif %}
+                      <strong>Rs {{ transaction.amount }}</strong>
+                      <br><small class="text-success">Commission: Rs {{ transaction.collector_commission }}</small>
                     </td>
                     <td>
-                      <small class="text-muted">{{ user.date_joined|date:"M d, Y" }}</small>
+                      <strong>{{ transaction.collector.username }}</strong>
+                      <br><small class="text-muted">Pickup #{{ transaction.pickup_request.id }}</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-success btn-sm" 
+                                onclick="approveTransaction({{ transaction.id }})" 
+                                title="Approve">
+                          <i class="fas fa-check"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="rejectTransaction({{ transaction.id }})" 
+                                title="Reject">
+                          <i class="fas fa-times"></i>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                   {% endfor %}
@@ -247,8 +309,8 @@
             </div>
           {% else %}
             <div class="text-center py-4">
-              <i class="fas fa-user-plus fa-3x text-muted mb-3"></i>
-              <p class="text-muted">No recent user registrations.</p>
+              <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+              <p class="text-muted">No pending transactions.</p>
             </div>
           {% endif %}
         </div>
@@ -308,10 +370,12 @@
                     </td>
                     <td>
                       <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-primary btn-sm" title="Edit">
+                        <button type="button" class="btn btn-outline-primary btn-sm" title="Edit" 
+                                onclick="editCategory({{ cat.id }}, '{{ cat.name }}', {{ cat.rate_per_kg }}, '{{ cat.description }}', {{ cat.is_active|yesno:'true,false' }})">
                           <i class="fas fa-edit"></i>
                         </button>
-                        <button type="button" class="btn btn-outline-danger btn-sm" title="Delete">
+                        <button type="button" class="btn btn-outline-danger btn-sm" title="Delete" 
+                                onclick="deleteCategory({{ cat.id }}, '{{ cat.name }}')">
                           <i class="fas fa-trash"></i>
                         </button>
                       </div>
@@ -342,7 +406,7 @@
         <div class="card-body text-center py-4">
           <h6 class="text-muted mb-3">Quick Actions</h6>
           <div class="d-flex justify-content-center flex-wrap gap-2">
-            <a href="/admin/auth/user/" class="btn btn-outline-primary" target="_blank">
+            <a href="/admin/core/user/" class="btn btn-outline-primary" target="_blank">
               <i class="fas fa-users me-1"></i>Manage Users
             </a>
             <a href="/admin/core/pickuprequest/" class="btn btn-outline-success" target="_blank">
@@ -354,7 +418,7 @@
             <a href="/admin/core/transaction/" class="btn btn-outline-info" target="_blank">
               <i class="fas fa-money-bill-wave me-1"></i>View Transactions
             </a>
-            <button class="btn btn-outline-secondary" onclick="exportData()">
+            <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#exportModal">
               <i class="fas fa-download me-1"></i>Export Data
             </button>
           </div>
@@ -363,6 +427,127 @@
     </div>
   </div>
 
+</div>
+
+<!-- Update Pickup Status Modal -->
+<div class="modal fade" id="updateStatusModal" tabindex="-1" aria-labelledby="updateStatusModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="updateStatusModalLabel">
+          <i class="fas fa-edit me-2"></i>Update Pickup Status
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="updateStatusForm" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label"><strong>Pickup Details:</strong></label>
+            <div id="pickupDetails" class="p-2 bg-light rounded"></div>
+          </div>
+          <div class="mb-3">
+            <label for="statusSelect" class="form-label">New Status</label>
+            <select class="form-select" id="statusSelect" name="status" required>
+              {% for status_code, status_display in status_choices %}
+                <option value="{{ status_code }}">{{ status_display }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3" id="weightSection" style="display: none;">
+            <label for="actualWeight" class="form-label">Actual Weight (kg)</label>
+            <input type="number" class="form-control" id="actualWeight" name="actual_weight_kg" step="0.01" min="0.1">
+            <small class="form-text text-muted">Required when marking as completed</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>Update Status
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Export Data Modal -->
+<div class="modal fade" id="exportModal" tabindex="-1" aria-labelledby="exportModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-secondary text-white">
+        <h5 class="modal-title" id="exportModalLabel">
+          <i class="fas fa-download me-2"></i>Export Pickup Data
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="exportForm" method="get" action="{% url 'export_data_pdf' %}">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="startDate" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="startDate" name="start_date">
+                <small class="form-text text-muted">Leave empty for no start date filter</small>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="endDate" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="endDate" name="end_date">
+                <small class="form-text text-muted">Leave empty for no end date filter</small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="statusFilter" class="form-label">Status Filter</label>
+                <select class="form-select" id="statusFilter" name="status">
+                  <option value="all">All Statuses</option>
+                  {% for status_code, status_display in status_choices %}
+                    <option value="{{ status_code }}">{{ status_display }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label class="form-label">Price Range (Rs)</label>
+                <div class="row">
+                  <div class="col-6">
+                    <input type="number" class="form-control" id="minPrice" name="min_price" placeholder="Min Price" step="0.01" min="0">
+                  </div>
+                  <div class="col-6">
+                    <input type="number" class="form-control" id="maxPrice" name="max_price" placeholder="Max Price" step="0.01" min="0">
+                  </div>
+                </div>
+                <small class="form-text text-muted">Leave empty for no price filter</small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>Export Information:</strong>
+            <ul class="mb-0 mt-2">
+              <li>Data will be exported as a formatted PDF file</li>
+              <li>Includes: ID, Date, Customer, Collector, Category, Weight (kg), Actual Weight (kg), Price (Rs), Status</li>
+              <li>Filters are optional - leave empty to export all data</li>
+              <li>Large exports may take a few moments to generate</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-file-pdf me-1"></i>Generate PDF Export
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <!-- Add Category Modal -->
@@ -379,18 +564,18 @@
         <form id="addCategoryForm">
           <div class="mb-3">
             <label for="categoryName" class="form-label">Category Name</label>
-            <input type="text" class="form-control" id="categoryName" placeholder="e.g., Paper, Plastic, Metal" required>
+            <input type="text" class="form-control" id="categoryName" name="categoryName" placeholder="e.g., Paper, Plastic, Metal" required>
           </div>
           <div class="mb-3">
             <label for="categoryRate" class="form-label">Rate per KG (Rs.)</label>
-            <input type="number" class="form-control" id="categoryRate" step="0.01" min="0" placeholder="0.00" required>
+            <input type="number" class="form-control" id="categoryRate" name="categoryRate" step="0.01" min="0" placeholder="0.00" required>
           </div>
           <div class="mb-3">
             <label for="categoryDescription" class="form-label">Description</label>
-            <textarea class="form-control" id="categoryDescription" rows="3" placeholder="Brief description of this waste category"></textarea>
+            <textarea class="form-control" id="categoryDescription" name="categoryDescription" rows="3" placeholder="Brief description of this waste category"></textarea>
           </div>
           <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="categoryActive" checked>
+            <input class="form-check-input" type="checkbox" id="categoryActive" name="categoryActive" checked>
             <label class="form-check-label" for="categoryActive">
               Active (available for pickup requests)
             </label>
@@ -431,30 +616,246 @@ function refreshData() {
 
 function addCategory() {
     const form = document.getElementById('addCategoryForm');
-    const name = document.getElementById('categoryName').value;
-    const rate = document.getElementById('categoryRate').value;
-    const description = document.getElementById('categoryDescription').value;
-    const active = document.getElementById('categoryActive').checked;
+    const modal = document.getElementById('addCategoryModal');
+    const categoryId = modal.getAttribute('data-category-id');
     
-    if (!name || !rate) {
-        showAlert('Please fill in all required fields.', 'error');
-        return;
-    }
+    // Determine if this is an edit or add operation
+    const isEdit = categoryId && categoryId !== '';
+    const url = isEdit ? `/admin-manage/edit-category/${categoryId}/` : '/admin-manage/add-category/';
     
-    // In a real app, you'd send this data to your backend
-    console.log('Adding category:', { name, rate, description, active });
+    // Create form data
+    const formData = new FormData(form);
     
-    // Show success message
-    showAlert('Category will be added! (This is a demo)', 'success');
+    // Add CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    formData.append('csrfmiddlewaretoken', csrfToken);
     
-    // Close modal and reset form
-    bootstrap.Modal.getInstance(document.getElementById('addCategoryModal')).hide();
+    // Submit form
+    fetch(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            // Reload page to show updated data
+            window.location.reload();
+        } else {
+            showAlert('Error saving category. Please try again.', 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('Error saving category. Please try again.', 'error');
+    });
+    
+    // Close modal
+    bootstrap.Modal.getInstance(modal).hide();
+    
+    // Reset modal for next use
+    modal.removeAttribute('data-category-id');
+    document.getElementById('addCategoryModalLabel').innerHTML = '<i class="fas fa-plus me-2"></i>Add New Waste Category';
+    document.querySelector('#addCategoryModal .btn-success').innerHTML = '<i class="fas fa-save me-1"></i>Add Category';
     form.reset();
 }
 
-function exportData() {
-    showAlert('Data export feature will be implemented soon!', 'info');
+// Export functionality is now handled by the modal form
+
+// Waste Category Management Functions
+function editCategory(id, name, rate, description, isActive) {
+    // Populate the form with existing data
+    document.getElementById('categoryName').value = name;
+    document.getElementById('categoryRate').value = rate;
+    document.getElementById('categoryDescription').value = description;
+    document.getElementById('categoryActive').checked = isActive;
+    
+    // Change modal title and button text
+    document.getElementById('addCategoryModalLabel').innerHTML = '<i class="fas fa-edit me-2"></i>Edit Waste Category';
+    document.querySelector('#addCategoryModal .btn-success').innerHTML = '<i class="fas fa-save me-1"></i>Update Category';
+    
+    // Store category ID for update
+    document.getElementById('addCategoryModal').setAttribute('data-category-id', id);
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('addCategoryModal')).show();
 }
+
+function deleteCategory(id, name) {
+    if (confirm(`Are you sure you want to delete the category "${name}"? This action cannot be undone.`)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin-manage/delete-category/${id}/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Admin pickup management functions
+let currentPickupId = null;
+
+function openStatusModal(pickupId, currentStatus, customerName, categoryName) {
+    currentPickupId = pickupId;
+    
+    // Update pickup details
+    document.getElementById('pickupDetails').innerHTML = `
+        <strong>Pickup ID:</strong> #${pickupId}<br>
+        <strong>Customer:</strong> ${customerName}<br>
+        <strong>Category:</strong> ${categoryName}<br>
+        <strong>Current Status:</strong> <span class="badge bg-secondary">${currentStatus}</span>
+    `;
+    
+    // Set current status in select
+    document.getElementById('statusSelect').value = currentStatus;
+    
+    // Show/hide weight section based on status
+    toggleWeightSection();
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('updateStatusModal')).show();
+}
+
+function toggleWeightSection() {
+    const statusSelect = document.getElementById('statusSelect');
+    const weightSection = document.getElementById('weightSection');
+    
+    if (statusSelect.value === 'completed') {
+        weightSection.style.display = 'block';
+        document.getElementById('actualWeight').required = true;
+    } else {
+        weightSection.style.display = 'none';
+        document.getElementById('actualWeight').required = false;
+    }
+}
+
+function quickComplete(pickupId) {
+    if (confirm('Mark this pickup as completed? You will need to enter the actual weight.')) {
+        openStatusModal(pickupId, 'completed', '', '');
+        document.getElementById('statusSelect').value = 'completed';
+        toggleWeightSection();
+    }
+}
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.pickup-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+function bulkAction(action) {
+    const selectedPickups = document.querySelectorAll('.pickup-checkbox:checked');
+    
+    if (selectedPickups.length === 0) {
+        showAlert('Please select at least one pickup.', 'error');
+        return;
+    }
+    
+    const actionText = action === 'mark_completed' ? 'mark as completed' :
+                      action === 'mark_cancelled' ? 'cancel' : 'unassign collector from';
+    
+    if (confirm(`Are you sure you want to ${actionText} ${selectedPickups.length} pickup(s)?`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '{% url "admin_bulk_update_pickups" %}';
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        // Add action
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'bulk_action';
+        actionInput.value = action;
+        form.appendChild(actionInput);
+        
+        // Add selected pickup IDs
+        selectedPickups.forEach(checkbox => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'pickup_ids';
+            input.value = checkbox.value;
+            form.appendChild(input);
+        });
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function approveTransaction(transactionId) {
+    if (confirm('Approve this transaction and mark as paid?')) {
+        submitTransactionAction(transactionId, 'approve');
+    }
+}
+
+function rejectTransaction(transactionId) {
+    if (confirm('Reject this transaction?')) {
+        submitTransactionAction(transactionId, 'reject');
+    }
+}
+
+function submitTransactionAction(transactionId, action) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/admin-manage/approve-transaction/${transactionId}/`;
+    
+    // Add CSRF token
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    // Add action
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = action;
+    form.appendChild(actionInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Handle status form submission
+document.addEventListener('DOMContentLoaded', function() {
+    const statusSelect = document.getElementById('statusSelect');
+    if (statusSelect) {
+        statusSelect.addEventListener('change', toggleWeightSection);
+    }
+    
+    const updateForm = document.getElementById('updateStatusForm');
+    if (updateForm) {
+        updateForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (currentPickupId) {
+                this.action = `/admin-manage/update-pickup-status/${currentPickupId}/`;
+                this.submit();
+            }
+        });
+    }
+});
 
 function showAlert(message, type) {
     const alertClass = type === 'error' ? 'alert-danger' : 
