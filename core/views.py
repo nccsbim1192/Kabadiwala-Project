@@ -634,3 +634,123 @@ def delete_category(request, category_id):
         messages.success(request, f'Category "{category_name}" deleted successfully!')
     
     return redirect('admin_dashboard')
+
+@staff_member_required
+def manage_users(request):
+    """User management view for admin"""
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+    
+    # Get all users with their statistics
+    users = User.objects.all().order_by('-date_joined')
+    
+    # Add pickup statistics for each user
+    for user in users:
+        if user.role == 'customer':
+            user.pickup_count = PickupRequest.objects.filter(customer=user).count()
+            user.completed_pickups = PickupRequest.objects.filter(customer=user, status='completed').count()
+        elif user.role == 'collector':
+            user.pickup_count = PickupRequest.objects.filter(collector=user).count()
+            user.completed_pickups = PickupRequest.objects.filter(collector=user, status='completed').count()
+        else:
+            user.pickup_count = 0
+            user.completed_pickups = 0
+    
+    context = {
+        'users': users,
+        'total_users': users.count(),
+        'role_choices': User.ROLE_CHOICES,
+    }
+    return render(request, 'core/manage_users.html', context)
+
+@staff_member_required
+def create_admin_user(request):
+    """Create a new admin user"""
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
+        phone = request.POST.get('phone', '')
+        
+        # Validation
+        if not username or not email or not password:
+            messages.error(request, 'Username, email, and password are required.')
+            return redirect('manage_users')
+        
+        if User.objects.filter(username=username).exists():
+            messages.error(request, 'Username already exists.')
+            return redirect('manage_users')
+        
+        if User.objects.filter(email=email).exists():
+            messages.error(request, 'Email already exists.')
+            return redirect('manage_users')
+        
+        try:
+            # Create new admin user
+            admin_user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+                role='admin',
+                is_staff=True
+            )
+            
+            messages.success(request, f'Admin user "{username}" created successfully!')
+        except Exception as e:
+            messages.error(request, f'Error creating admin user: {str(e)}')
+    
+    return redirect('manage_users')
+
+@staff_member_required
+def toggle_user_status(request, user_id):
+    """Activate/deactivate user account"""
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+    
+    user = get_object_or_404(User, id=user_id)
+    
+    # Prevent deactivating superuser or self
+    if user.is_superuser or user == request.user:
+        messages.error(request, 'Cannot deactivate this user account.')
+        return redirect('manage_users')
+    
+    if request.method == 'POST':
+        user.is_active = not user.is_active
+        user.save()
+        
+        status = 'activated' if user.is_active else 'deactivated'
+        messages.success(request, f'User {user.username} has been {status}')
+    
+    return redirect('manage_users')
+
+@staff_member_required
+def delete_user(request, user_id):
+    """Delete user account (admin only)"""
+    if not (request.user.role == 'admin' or request.user.is_superuser):
+        messages.error(request, 'Access denied. Admin privileges required.')
+        return redirect('dashboard')
+    
+    user = get_object_or_404(User, id=user_id)
+    
+    # Prevent deleting superuser or self
+    if user.is_superuser or user == request.user:
+        messages.error(request, 'Cannot delete this user account.')
+        return redirect('manage_users')
+    
+    if request.method == 'POST':
+        username = user.username
+        user.delete()
+        messages.success(request, f'User {username} has been deleted successfully.')
+    
+    return redirect('manage_users')

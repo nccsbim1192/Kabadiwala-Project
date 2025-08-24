@@ -1,0 +1,492 @@
+{% extends 'core/base.html' %}
+
+{% block title %}User Management - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+  
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="text-primary mb-1">
+            <i class="fas fa-users-cog me-2"></i>User Management
+          </h2>
+          <p class="lead text-muted mb-0">Manage user accounts and permissions</p>
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'admin_dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+          </a>
+          <button class="btn btn-outline-primary" onclick="refreshData()">
+            <i class="fas fa-sync-alt me-1"></i>Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Statistics Cards -->
+  <div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-primary text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-users fa-2x me-2"></i>
+            <h3 class="mb-0">{{ total_users }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Total Users</p>
+          <small class="opacity-75">All registered accounts</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-success text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-user-shield fa-2x me-2"></i>
+            <h3 class="mb-0">{{ users|length|add:"-1" }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Admins</p>
+          <small class="opacity-75">System administrators</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-info text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-user-check fa-2x me-2"></i>
+            <h3 class="mb-0">{{ users|length }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">Active Users</p>
+          <small class="opacity-75">Currently active accounts</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+      <div class="card stat-card bg-gradient-warning text-white shadow-sm">
+        <div class="card-body text-center">
+          <div class="d-flex justify-content-center align-items-center mb-2">
+            <i class="fas fa-user-plus fa-2x me-2"></i>
+            <h3 class="mb-0">{{ users|slice:":7"|length }}</h3>
+          </div>
+          <p class="mb-0 fw-semibold">New This Week</p>
+          <small class="opacity-75">Recent registrations</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- User Management Table -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">
+            <i class="fas fa-table me-2"></i>All Users
+          </h6>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-light" data-bs-toggle="modal" data-bs-target="#createAdminModal">
+              <i class="fas fa-user-plus me-1"></i>Create Admin
+            </button>
+            <div class="dropdown">
+              <button class="btn btn-sm btn-outline-light dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="fas fa-filter me-1"></i>Filter by Role
+              </button>
+              <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="#" onclick="filterByRole('all')">All Roles</a></li>
+                {% for role_code, role_display in role_choices %}
+                <li><a class="dropdown-item" href="#" onclick="filterByRole('{{ role_code }}')">{{ role_display }}</a></li>
+                {% endfor %}
+              </ul>
+            </div>
+            <small class="align-self-center">{{ total_users }} total users</small>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          {% if users %}
+            <div class="table-responsive">
+              <table class="table table-hover mb-0" id="usersTable">
+                <thead class="table-light">
+                  <tr>
+                    <th>User Info</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Activity</th>
+                    <th>Joined</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for user in users %}
+                  <tr data-role="{{ user.role }}" class="user-row">
+                    <td>
+                      <div class="d-flex align-items-center">
+                        <div class="avatar-circle me-3">
+                          <i class="fas fa-user"></i>
+                        </div>
+                        <div>
+                          <strong>{{ user.get_full_name|default:user.username }}</strong>
+                          <br><small class="text-muted">{{ user.email|default:"No email" }}</small>
+                          {% if user.phone %}
+                            <br><small class="text-muted"><i class="fas fa-phone fa-xs me-1"></i>{{ user.phone }}</small>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      {% if user.role == 'admin' %}
+                        <span class="badge bg-danger">
+                          <i class="fas fa-user-shield me-1"></i>Admin
+                        </span>
+                      {% elif user.role == 'collector' %}
+                        <span class="badge bg-info">
+                          <i class="fas fa-truck me-1"></i>Collector
+                        </span>
+                      {% else %}
+                        <span class="badge bg-success">
+                          <i class="fas fa-user me-1"></i>Customer
+                        </span>
+                      {% endif %}
+                      {% if user.is_superuser %}
+                        <br><span class="badge bg-dark mt-1">
+                          <i class="fas fa-crown fa-xs me-1"></i>Superuser
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if user.is_active %}
+                        <span class="badge bg-success">
+                          <i class="fas fa-check-circle me-1"></i>Active
+                        </span>
+                      {% else %}
+                        <span class="badge bg-secondary">
+                          <i class="fas fa-ban me-1"></i>Inactive
+                        </span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <div class="small">
+                        <strong>Pickups:</strong> {{ user.pickup_count|default:0 }}<br>
+                        <strong>Completed:</strong> {{ user.completed_pickups|default:0 }}
+                        {% if user.pickup_count > 0 %}
+                          <br><small class="text-success">
+                            {{ user.completed_pickups|default:0 }}/{{ user.pickup_count }} 
+                            ({% widthratio user.completed_pickups user.pickup_count 100 %}%)
+                          </small>
+                        {% endif %}
+                      </div>
+                    </td>
+                    <td>
+                      <small class="text-muted">{{ user.date_joined|date:"M d, Y" }}</small>
+                      <br><small class="text-muted">{{ user.date_joined|timesince }} ago</small>
+                    </td>
+                    <td>
+                      <div class="btn-group btn-group-sm" role="group">
+                        <!-- View Details Button -->
+                        <button type="button" class="btn btn-outline-info btn-sm" 
+                                onclick="viewUserDetails({{ user.id }}, '{{ user.username }}', '{{ user.email }}', '{{ user.phone }}', '{{ user.date_joined|date:"M d, Y" }}')" 
+                                title="View Details">
+                          <i class="fas fa-eye"></i>
+                        </button>
+                        
+                        <!-- Toggle Status Button -->
+                        {% if not user.is_superuser and user.id != request.user.id %}
+                        <button type="button" class="btn btn-outline-warning btn-sm" 
+                                onclick="toggleUserStatus({{ user.id }}, '{{ user.username }}', {{ user.is_active|yesno:'true,false' }})" 
+                                title="{% if user.is_active %}Deactivate{% else %}Activate{% endif %} User">
+                          {% if user.is_active %}
+                            <i class="fas fa-user-slash"></i>
+                          {% else %}
+                            <i class="fas fa-user-check"></i>
+                          {% endif %}
+                        </button>
+                        {% endif %}
+                        
+                        <!-- Delete Button (Only for non-admin users) -->
+                        {% if not user.is_superuser and user.id != request.user.id and user.role != 'admin' %}
+                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                onclick="deleteUser({{ user.id }}, '{{ user.username }}')" 
+                                title="Delete User">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                        {% endif %}
+                      </div>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="text-center py-4">
+              <i class="fas fa-users fa-3x text-muted mb-3"></i>
+              <p class="text-muted">No users found.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Create Admin Modal -->
+<div class="modal fade" id="createAdminModal" tabindex="-1" aria-labelledby="createAdminModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="createAdminModalLabel">
+          <i class="fas fa-user-plus me-2"></i>Create New Admin User
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="createAdminForm" method="post" action="{% url 'create_admin_user' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="username" class="form-label">Username *</label>
+                <input type="text" class="form-control" id="username" name="username" required>
+                <small class="form-text text-muted">Must be unique</small>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="email" class="form-label">Email *</label>
+                <input type="email" class="form-control" id="email" name="email" required>
+                <small class="form-text text-muted">Must be unique</small>
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="first_name" class="form-label">First Name</label>
+                <input type="text" class="form-control" id="first_name" name="first_name">
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="last_name" class="form-label">Last Name</label>
+                <input type="text" class="form-control" id="last_name" name="last_name">
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="password" class="form-label">Password *</label>
+                <input type="password" class="form-control" id="password" name="password" required minlength="8">
+                <small class="form-text text-muted">Minimum 8 characters</small>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="mb-3">
+                <label for="phone" class="form-label">Phone Number</label>
+                <input type="tel" class="form-control" id="phone" name="phone">
+              </div>
+            </div>
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Important:</strong>
+            <ul class="mb-0 mt-2">
+              <li>This will create a new admin user with full system privileges</li>
+              <li>Admin users can manage all users, pickups, and system settings</li>
+              <li>Make sure to provide secure credentials</li>
+              <li>The new admin will be able to access the admin dashboard immediately</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-user-plus me-1"></i>Create Admin User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- User Details Modal -->
+<div class="modal fade" id="userDetailsModal" tabindex="-1" aria-labelledby="userDetailsModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title" id="userDetailsModalLabel">
+          <i class="fas fa-user me-2"></i>User Details
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="userDetailsContent">
+          <!-- Content will be populated by JavaScript -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Custom CSS -->
+<style>
+.avatar-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #007bff, #0056b3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+}
+
+.stat-card {
+  border: none;
+  border-radius: 10px;
+  transition: transform 0.2s;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+}
+
+.bg-gradient-primary {
+  background: linear-gradient(45deg, #007bff, #0056b3);
+}
+
+.bg-gradient-success {
+  background: linear-gradient(45deg, #28a745, #1e7e34);
+}
+
+.bg-gradient-info {
+  background: linear-gradient(45deg, #17a2b8, #117a8b);
+}
+
+.bg-gradient-warning {
+  background: linear-gradient(45deg, #ffc107, #e0a800);
+}
+
+.user-row.filtered-out {
+  display: none;
+}
+</style>
+
+<!-- JavaScript -->
+<script>
+let currentUserId = null;
+
+function refreshData() {
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Refreshing...';
+    button.disabled = true;
+    
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function viewUserDetails(userId, username, email, phone, joinDate) {
+    // Update user details content
+    document.getElementById('userDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Username:</strong><br>
+                <span class="text-muted">${username}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Email:</strong><br>
+                <span class="text-muted">${email || 'Not provided'}</span>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <strong>Phone:</strong><br>
+                <span class="text-muted">${phone || 'Not provided'}</span>
+            </div>
+            <div class="col-md-6">
+                <strong>Join Date:</strong><br>
+                <span class="text-muted">${joinDate}</span>
+            </div>
+        </div>
+    `;
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('userDetailsModal')).show();
+}
+
+function toggleUserStatus(userId, username, isActive) {
+    const action = isActive ? 'deactivate' : 'activate';
+    const confirmMsg = `Are you sure you want to ${action} user "${username}"?`;
+    
+    if (confirm(confirmMsg)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin-manage/toggle-user-status/${userId}/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function deleteUser(userId, username) {
+    const confirmMsg = `Are you sure you want to DELETE user "${username}"? This action cannot be undone and will remove all their data.`;
+    
+    if (confirm(confirmMsg)) {
+        // Create form and submit
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/admin-manage/delete-user/${userId}/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function filterByRole(role) {
+    const rows = document.querySelectorAll('.user-row');
+    
+    rows.forEach(row => {
+        if (role === 'all' || row.getAttribute('data-role') === role) {
+            row.classList.remove('filtered-out');
+        } else {
+            row.classList.add('filtered-out');
+        }
+    });
+}
+</script>
+
+{% endblock %}

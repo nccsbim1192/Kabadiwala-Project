@@ -41,6 +41,10 @@ urlpatterns = [
     
     # User Management
     path('delete-account/', views.delete_account, name='delete_account'),
+    path('admin-manage/users/', views.manage_users, name='manage_users'),
+    path('admin-manage/create-admin/', views.create_admin_user, name='create_admin_user'),
+    path('admin-manage/toggle-user-status/<int:user_id>/', views.toggle_user_status, name='toggle_user_status'),
+    path('admin-manage/delete-user/<int:user_id>/', views.delete_user, name='delete_user'),
     
     # Static Pages
     path('about/', views.about, name='about'),
