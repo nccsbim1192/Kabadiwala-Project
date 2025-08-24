@@ -3,6 +3,17 @@ from django.db import models
 from django.utils import timezone
 from django.core.validators import MinValueValidator, MaxValueValidator
 from decimal import Decimal
+import os
+
+
+def user_profile_image_path(instance, filename):
+    """Generate file path for user profile images based on role"""
+    # Get file extension
+    ext = filename.split('.')[-1]
+    # Create filename: username.extension
+    filename = f"{instance.username}.{ext}"
+    # Return path: images/role/filename
+    return os.path.join('images', instance.role, filename)
 
 
 class User(AbstractUser):
@@ -14,6 +25,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='customer')
     phone = models.CharField(max_length=15, blank=True)
     address = models.TextField(blank=True)
+    profile_image = models.ImageField(upload_to=user_profile_image_path, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

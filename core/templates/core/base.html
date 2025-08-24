@@ -19,9 +19,6 @@
         <div class="container">
             <a class="navbar-brand fw-bold" href="{% url 'home' %}"> 
                 <i class="fas fa-recycle me-2"></i>Online Kawadiwala
-                 <i class="fas fa-recycle me-2"></i>Home
-                
-                
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -32,18 +29,14 @@
                 <ul class="navbar-nav ms-auto">
                     {% if user.is_authenticated %}
                         <li class="nav-item">
-                        
-            
-                        </li>
-                            <a class="nav-link" href="{% url 'dashboard' %}">
-                                 <i class="fas fa-tachometer-alt me-1"></i>Dashboard
-                                
+                            <a class="nav-link" href="{% url 'home' %}">
+                                <i class="fas fa-home me-1"></i>Home
                             </a>
-                        <li>
-                            <a class ="nav-link" <a href="{% url 'home' %}">Home</a>
-
-                                <i class ="fas  fa-techmeter-alt me-1"></i>
-
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="{% url 'dashboard' %}">
+                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
+                            </a>
                         </li>
                         {% if user.role == 'customer' %}
                         <li class="nav-item">
@@ -59,21 +52,24 @@
                         {% endif %}
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user me-1"></i>{{ user.username }}
+                                {% if user.profile_image %}
+                                    <img src="{{ user.profile_image.url }}" alt="Profile" class="rounded-circle me-1" style="width: 25px; height: 25px; object-fit: cover;">
+                                {% else %}
+                                    <i class="fas fa-user me-1"></i>
+                                {% endif %}
+                                {{ user.username }}
                             </a>
                             <ul class="dropdown-menu">
                                 <li><span class="dropdown-item-text">Role: {{ user.get_role_display }}</span></li>
                                 <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'user_profile' %}">
+                                    <i class="fas fa-user-cog me-1"></i>Profile
+                                </a></li>
                                 <li><a class="dropdown-item" href="{% url 'logout' %}">
                                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                                 </a></li>
                             </ul>
-                        </li> 
-                        {% if user.is_authenticated %}
-    <a href="{% url 'logout' %}" class="nav-link">Logout</a>
-
-{% endif %}
-
+                        </li>
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'login' %}">

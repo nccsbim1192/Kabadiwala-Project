@@ -155,6 +155,12 @@ def collector_dashboard(request):
         )['total'] or 0
         total_earnings = completed_earnings * Decimal('0.10')
 
+    # Get recent completed pickups for history widget
+    recent_completed_pickups = PickupRequest.objects.filter(
+        collector=request.user,
+        status='completed'
+    ).order_by('-created_at')[:10]
+
     context = {
         'available_pickups': available_pickups,
         'assigned_pickups': assigned_pickups,
@@ -162,6 +168,7 @@ def collector_dashboard(request):
         'total_earnings': total_earnings,
         'completion_rate': completion_rate,
         'completed_pickups': completed_pickups.count(),
+        'recent_completed_pickups': recent_completed_pickups,
     }
     return render(request, 'core/dashboard_collector.html', context)
 
@@ -754,3 +761,34 @@ def delete_user(request, user_id):
         messages.success(request, f'User {username} has been deleted successfully.')
     
     return redirect('manage_users')
+
+@login_required
+def user_profile(request):
+    """User profile view with image upload"""
+    if request.method == 'POST':
+        # Handle profile update
+        first_name = request.POST.get('first_name', '')
+        last_name = request.POST.get('last_name', '')
+        email = request.POST.get('email', '')
+        phone = request.POST.get('phone', '')
+        address = request.POST.get('address', '')
+        
+        # Update user fields
+        request.user.first_name = first_name
+        request.user.last_name = last_name
+        request.user.email = email
+        request.user.phone = phone
+        request.user.address = address
+        
+        # Handle profile image upload
+        if 'profile_image' in request.FILES:
+            request.user.profile_image = request.FILES['profile_image']
+        
+        request.user.save()
+        messages.success(request, 'Profile updated successfully!')
+        return redirect('user_profile')
+    
+    context = {
+        'user': request.user,
+    }
+    return render(request, 'core/user_profile.html', context)

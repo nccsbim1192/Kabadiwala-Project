@@ -68,6 +68,7 @@
             </div>
         </div>
         
+        {% if user.role != 'collector' %}
         <div class="col-lg-3 col-md-6 mb-3">
             <div class="card stat-card bg-gradient-primary text-white shadow-sm">
                 <div class="card-body text-center d-flex flex-column justify-content-center">
@@ -78,6 +79,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
     </div>
 
     <!-- Filters Section -->
@@ -423,11 +425,16 @@
                     {% else %}
                         <div class="text-center py-5">
                             <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
-                            <h4 class="text-muted mb-2">No Pickup Requests Yet</h4>
-                            <p class="text-muted mb-4">Start your recycling journey and earn money from your waste!</p>
-                            <a href="{% url 'request_pickup' %}" class="btn btn-success btn-lg">
-                                <i class="fas fa-plus me-2"></i>Request Your First Pickup
-                            </a>
+                            {% if user.role == 'collector' %}
+                                <h4 class="text-muted mb-2">No Pickup Requests Found</h4>
+                                <p class="text-muted mb-4">You haven't been assigned any pickup requests yet.</p>
+                            {% else %}
+                                <h4 class="text-muted mb-2">No Pickup Requests Yet</h4>
+                                <p class="text-muted mb-4">Start your recycling journey and earn money from your waste!</p>
+                                <a href="{% url 'request_pickup' %}" class="btn btn-success btn-lg">
+                                    <i class="fas fa-plus me-2"></i>Request Your First Pickup
+                                </a>
+                            {% endif %}
                         </div>
                     {% endif %}
                 </div>

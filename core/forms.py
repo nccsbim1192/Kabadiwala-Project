@@ -7,10 +7,16 @@ import re
 
 
 class CustomUserCreationForm(UserCreationForm):
+    # Define role choices excluding admin - only customer and collector allowed for public registration
+    PUBLIC_ROLE_CHOICES = [
+        ('customer', 'Customer'),
+        ('collector', 'Collector'),
+    ]
+    
     email = forms.EmailField(required=True, widget=forms.EmailInput(attrs={'class': 'form-control'}))
     phone = forms.CharField(max_length=15, required=False, widget=forms.TextInput(attrs={'class': 'form-control'}))
     address = forms.CharField(widget=forms.Textarea(attrs={'rows': 3, 'class': 'form-control'}), required=False)
-    role = forms.ChoiceField(choices=User.ROLE_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
+    role = forms.ChoiceField(choices=PUBLIC_ROLE_CHOICES, widget=forms.Select(attrs={'class': 'form-control'}))
 
     class Meta:
         model = User

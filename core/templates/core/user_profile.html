@@ -1,0 +1,278 @@
+{% extends 'core/base.html' %}
+
+{% block title %}User Profile - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  
+  <!-- Header Section -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <h2 class="text-primary mb-1">
+            <i class="fas fa-user-cog me-2"></i>User Profile
+          </h2>
+          <p class="lead text-muted mb-0">Manage your account information and settings</p>
+        </div>
+        <div>
+          <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- Profile Image Section -->
+    <div class="col-lg-4 mb-4">
+      <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white text-center">
+          <h6 class="mb-0">
+            <i class="fas fa-camera me-2"></i>Profile Picture
+          </h6>
+        </div>
+        <div class="card-body text-center">
+          <div class="profile-image-container mb-3">
+            {% if user.profile_image %}
+              <img src="{{ user.profile_image.url }}" alt="Profile Picture" class="profile-image rounded-circle shadow">
+            {% else %}
+              <div class="profile-placeholder rounded-circle shadow d-flex align-items-center justify-content-center">
+                <i class="fas fa-user fa-4x text-muted"></i>
+              </div>
+            {% endif %}
+          </div>
+          
+          <form method="post" enctype="multipart/form-data" id="imageUploadForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <input type="file" class="form-control" id="profile_image" name="profile_image" accept="image/*" onchange="previewImage(this)">
+              <small class="form-text text-muted">Supported formats: JPG, PNG, GIF (Max: 5MB)</small>
+            </div>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-upload me-1"></i>Update Picture
+            </button>
+          </form>
+        </div>
+      </div>
+      
+      <!-- User Info Card -->
+      <div class="card shadow-sm mt-4">
+        <div class="card-header bg-info text-white">
+          <h6 class="mb-0">
+            <i class="fas fa-info-circle me-2"></i>Account Info
+          </h6>
+        </div>
+        <div class="card-body">
+          <div class="mb-2">
+            <strong>Username:</strong>
+            <span class="text-muted">{{ user.username }}</span>
+          </div>
+          <div class="mb-2">
+            <strong>Role:</strong>
+            {% if user.role == 'admin' %}
+              <span class="badge bg-danger">
+                <i class="fas fa-user-shield me-1"></i>Administrator
+              </span>
+            {% elif user.role == 'collector' %}
+              <span class="badge bg-info">
+                <i class="fas fa-truck me-1"></i>Collector
+              </span>
+            {% else %}
+              <span class="badge bg-success">
+                <i class="fas fa-user me-1"></i>Customer
+              </span>
+            {% endif %}
+          </div>
+          <div class="mb-2">
+            <strong>Member Since:</strong>
+            <span class="text-muted">{{ user.date_joined|date:"M d, Y" }}</span>
+          </div>
+          <div>
+            <strong>Status:</strong>
+            {% if user.is_active %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Form Section -->
+    <div class="col-lg-8">
+      <div class="card shadow-sm">
+        <div class="card-header bg-success text-white">
+          <h6 class="mb-0">
+            <i class="fas fa-edit me-2"></i>Personal Information
+          </h6>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="first_name" class="form-label">First Name</label>
+                  <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="last_name" class="form-label">Last Name</label>
+                  <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}">
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="email" class="form-label">Email Address</label>
+                  <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}">
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="mb-3">
+                  <label for="phone" class="form-label">Phone Number</label>
+                  <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone }}">
+                </div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="address" class="form-label">Address</label>
+              <textarea class="form-control" id="address" name="address" rows="3">{{ user.address }}</textarea>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+              <button type="submit" class="btn btn-success">
+                <i class="fas fa-save me-1"></i>Update Profile
+              </button>
+              <a href="{% url 'delete_account' %}" class="btn btn-outline-danger" onclick="return confirm('Are you sure you want to delete your account? This action cannot be undone.')">
+                <i class="fas fa-trash me-1"></i>Delete Account
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Custom CSS -->
+<style>
+.profile-image-container {
+  position: relative;
+  display: inline-block;
+}
+
+.profile-image {
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  border: 4px solid #fff;
+}
+
+.profile-placeholder {
+  width: 150px;
+  height: 150px;
+  background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+  border: 4px solid #fff;
+}
+
+.card {
+  border: none;
+  border-radius: 15px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.card-header {
+  border-radius: 15px 15px 0 0 !important;
+  border: none;
+}
+
+.form-control {
+  border-radius: 10px;
+  border: 1px solid #dee2e6;
+  padding: 0.75rem 1rem;
+}
+
+.form-control:focus {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+.btn {
+  border-radius: 10px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+}
+
+.badge {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}
+
+/* Animation for image preview */
+.profile-image, .profile-placeholder {
+  transition: all 0.3s ease;
+}
+
+.profile-image:hover, .profile-placeholder:hover {
+  transform: scale(1.05);
+}
+</style>
+
+<!-- JavaScript -->
+<script>
+function previewImage(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const container = document.querySelector('.profile-image-container');
+            container.innerHTML = `
+                <img src="${e.target.result}" alt="Profile Preview" class="profile-image rounded-circle shadow">
+            `;
+        }
+        
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+// Form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form');
+    
+    forms.forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const fileInput = form.querySelector('input[type="file"]');
+            
+            if (fileInput && fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                
+                if (file.size > maxSize) {
+                    e.preventDefault();
+                    alert('File size must be less than 5MB');
+                    return false;
+                }
+                
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                if (!allowedTypes.includes(file.type)) {
+                    e.preventDefault();
+                    alert('Please select a valid image file (JPG, PNG, or GIF)');
+                    return false;
+                }
+            }
+        });
+    });
+});
+</script>
+
+{% endblock %}
