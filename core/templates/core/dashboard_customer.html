@@ -491,7 +491,21 @@ function downloadReceipt(pickupId) {
 }
 
 function downloadReport() {
-    showAlert('Monthly report download feature coming soon!', 'info');
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Generating Report...';
+    button.disabled = true;
+    
+    // Download the PDF report
+    window.location.href = '{% url "customer_report_pdf" %}';
+    
+    // Reset button after a short delay
+    setTimeout(() => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+        showAlert('Report downloaded successfully!', 'success');
+    }, 2000);
 }
 
 function shareImpact() {

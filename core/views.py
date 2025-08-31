@@ -3,11 +3,13 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
+from django.db import transaction
 from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from datetime import datetime, date
 from django.contrib.admin.views.decorators import staff_member_required
 from django.core.paginator import Paginator
+import decimal
 
 from .models import User, PickupRequest, WasteCategory, Transaction, EnvironmentalImpact
 from .forms import CustomUserCreationForm, PickupRequestForm, CollectorUpdateForm
@@ -361,31 +363,100 @@ def admin_update_pickup_status(request, pickup_id):
     if request.method == 'POST':
         new_status = request.POST.get('status')
         actual_weight = request.POST.get('actual_weight_kg')
+        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
         
-        if new_status in dict(PickupRequest.STATUS_CHOICES):
+        try:
+            if new_status not in dict(PickupRequest.STATUS_CHOICES):
+                raise ValueError('Invalid status provided')
+                
+            # Validate weight for completed status
+            if new_status == 'completed':
+                try:
+                    weight = float(actual_weight or 0)
+                    if weight <= 0:
+                        raise ValueError('Please enter a valid weight greater than 0')
+                    pickup.actual_weight_kg = weight
+                except (TypeError, ValueError) as e:
+                    error_msg = str(e) if str(e) != 'float() argument must be a string or a real number, not ' else 'Please enter a valid weight'
+                    if is_ajax:
+                        return JsonResponse({'success': False, 'error': error_msg}, status=400)
+                    messages.error(request, error_msg)
+                    return redirect('admin_dashboard')
+            
+            # Update status
+            previous_status = pickup.status
             pickup.status = new_status
             
-            if actual_weight and new_status == 'completed':
-                pickup.actual_weight_kg = actual_weight
+            # Handle completion specific logic
+            if new_status == 'completed':
+                # Set actual price based on weight and category rate
+                if pickup.actual_weight_kg:
+                    # Convert both values to Decimal for consistent calculation
+                    from decimal import Decimal
+                    try:
+                        weight = Decimal(str(pickup.actual_weight_kg))
+                        if weight > 0:
+                            pickup.actual_price = weight * Decimal(str(pickup.waste_category.rate_per_kg))
+                    except (TypeError, ValueError, decimal.InvalidOperation) as e:
+                        if is_ajax:
+                            return JsonResponse({'success': False, 'error': 'Invalid weight value'}, status=400)
+                        messages.error(request, 'Invalid weight value')
+                        return redirect('admin_dashboard')
                 
                 # Create transaction if completed
                 if not hasattr(pickup, 'transaction'):
-                    Transaction.objects.create(
-                        pickup_request=pickup,
-                        customer=pickup.customer,
-                        collector=pickup.collector,
-                        amount=pickup.actual_price or pickup.estimated_price,
-                    )
-                    
-                    # Update customer's environmental impact
-                    impact, created = EnvironmentalImpact.objects.get_or_create(user=pickup.customer)
-                    impact.calculate_impact()
+                    with transaction.atomic():
+                        # Ensure amount is properly converted to Decimal
+                        from decimal import Decimal
+                        amount = Decimal(str(pickup.actual_price)) if pickup.actual_price else \
+                                 (Decimal(str(pickup.estimated_price)) if pickup.estimated_price else Decimal('0'))
+                        
+                        Transaction.objects.create(
+                            pickup_request=pickup,
+                            customer=pickup.customer,
+                            collector=pickup.collector,
+                            amount=amount,
+                            payment_method='cash',  # Default payment method
+                            payment_status='completed',
+                            is_paid=True
+                        )
+                        
+                        # Update customer's environmental impact
+                        impact, created = EnvironmentalImpact.objects.get_or_create(user=pickup.customer)
+                        impact.calculate_impact()
             
             pickup.save()
-            messages.success(request, f'Pickup #{pickup.id} status updated to {pickup.get_status_display()}')
-        else:
-            messages.error(request, 'Invalid status provided')
+            
+            # Send notification if status changed
+            if previous_status != new_status:
+                # You can add notification logic here if needed
+                pass
+            
+            success_msg = f'Pickup #{pickup.id} status updated to {pickup.get_status_display()}'
+            if is_ajax:
+                return JsonResponse({
+                    'success': True,
+                    'message': success_msg,
+                    'status': new_status,
+                    'status_display': pickup.get_status_display()
+                })
+                
+            messages.success(request, success_msg)
+            
+        except Exception as e:
+            error_msg = str(e) if str(e) else 'An error occurred while updating the status'
+            if is_ajax:
+                return JsonResponse({'success': False, 'error': error_msg}, status=400)
+            messages.error(request, error_msg)
     
+    if is_ajax:
+        return JsonResponse({
+            'success': True,
+            'message': 'Status updated successfully',
+            'status': pickup.status,
+            'status_display': pickup.get_status_display()
+        })
+        
     return redirect('admin_dashboard')
 
 @staff_member_required
@@ -792,3 +863,153 @@ def user_profile(request):
         'user': request.user,
     }
     return render(request, 'core/user_profile.html', context)
+
+@login_required
+def customer_report_pdf(request):
+    """Generate PDF report for customer's pickup history"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    from django.http import HttpResponse
+    from datetime import datetime
+    import io
+    
+    # Only allow customers to download their own reports
+    if request.user.role not in ['customer', 'admin']:
+        return redirect('dashboard')
+    
+    # Get customer's pickup requests
+    pickups = PickupRequest.objects.filter(
+        customer=request.user
+    ).select_related('collector', 'waste_category').order_by('-created_at')
+    
+    # Calculate statistics
+    total_pickups = pickups.count()
+    completed_pickups = pickups.filter(status='completed')
+    total_earnings = sum([p.actual_price or p.estimated_price for p in completed_pickups])
+    total_weight = sum([p.actual_weight_kg or p.estimated_weight_kg for p in completed_pickups])
+    
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=72, bottomMargin=36)
+    
+    # Container for PDF elements
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=20,
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        textColor=colors.green
+    )
+    elements.append(Paragraph("Online Kawadiwala - Personal Report", title_style))
+    
+    # Customer info
+    customer_info_style = ParagraphStyle(
+        'CustomerInfo',
+        parent=styles['Normal'],
+        fontSize=12,
+        spaceAfter=20,
+        alignment=TA_LEFT
+    )
+    
+    customer_info = f"""
+    <b>Customer:</b> {request.user.username}<br/>
+    <b>Email:</b> {request.user.email}<br/>
+    <b>Report Generated:</b> {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br/>
+    <b>Total Pickup Requests:</b> {total_pickups}<br/>
+    <b>Completed Pickups:</b> {completed_pickups.count()}<br/>
+    <b>Total Earnings:</b> Rs. {total_earnings:.2f}<br/>
+    <b>Total Weight Recycled:</b> {total_weight:.1f} kg
+    """
+    elements.append(Paragraph(customer_info, customer_info_style))
+    elements.append(Spacer(1, 20))
+    
+    # Table header
+    table_title = ParagraphStyle(
+        'TableTitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=10,
+        alignment=TA_LEFT,
+        textColor=colors.green
+    )
+    elements.append(Paragraph("Pickup History Details", table_title))
+    
+    if pickups.exists():
+        # Table data
+        data = [['Date', 'Category', 'Weight (kg)', 'Status', 'Collector', 'Earnings (Rs.)']]
+        
+        for pickup in pickups:
+            weight = f"{pickup.actual_weight_kg or pickup.estimated_weight_kg:.1f}"
+            if pickup.actual_weight_kg:
+                weight += " (actual)"
+            else:
+                weight += " (est.)"
+            
+            earnings = f"{pickup.actual_price or pickup.estimated_price:.2f}"
+            collector = pickup.collector.username if pickup.collector else "Not assigned"
+            
+            data.append([
+                pickup.created_at.strftime('%m/%d/%Y'),
+                pickup.waste_category.name,
+                weight,
+                pickup.get_status_display(),
+                collector,
+                earnings
+            ])
+        
+        # Create table
+        table = Table(data, colWidths=[1*inch, 1.2*inch, 1*inch, 1*inch, 1.2*inch, 1*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.green),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        elements.append(table)
+    else:
+        no_data_style = ParagraphStyle(
+            'NoData',
+            parent=styles['Normal'],
+            fontSize=12,
+            alignment=TA_CENTER,
+            textColor=colors.grey
+        )
+        elements.append(Paragraph("No pickup requests found.", no_data_style))
+    
+    # Footer
+    elements.append(Spacer(1, 30))
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
+    elements.append(Paragraph("Thank you for choosing Online Kawadiwala - Making recycling easy and rewarding!", footer_style))
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Return PDF response
+    buffer.seek(0)
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    filename = f"kawadiwala_report_{request.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response

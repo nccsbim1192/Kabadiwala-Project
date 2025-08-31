@@ -135,8 +135,12 @@ class Transaction(models.Model):
         ordering = ['-transaction_date']
 
     def save(self, *args, **kwargs):
+        from decimal import Decimal
+        # Ensure amount is a Decimal
+        if not isinstance(self.amount, Decimal):
+            self.amount = Decimal(str(self.amount))
         # Calculate 10% commission for collector
-        self.collector_commission = self.amount * Decimal('0.10')
+        self.collector_commission = (self.amount * Decimal('0.10')).quantize(Decimal('0.01'))
         super().save(*args, **kwargs)
 
     def __str__(self):
