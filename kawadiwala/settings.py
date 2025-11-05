@@ -107,3 +107,52 @@ AUTH_USER_MODEL = 'core.User'
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'home'
+
+# Payment Gateway Settings
+ESEWA_MERCHANT_CODE = 'Kwabadi wala'  # Replace with actual merchant code
+KHALTI_PUBLIC_KEY = 'test_public_key_dc74e0fd57cb46cd93832aee0a390234'  # Test public key
+KHALTI_SECRET_KEY = 'test_secret_key_f59e8b7d18b4499ca40f68195a846e9b'  # Test secret key
+
+# SMS Gateway Settings
+SMS_GATEWAY_TOKEN = 'your_sms_token_here'  # Replace with actual SMS gateway token
+SMS_FROM_NUMBER = 'KAWADI'
+
+# Google Maps API Key
+GOOGLE_MAPS_API_KEY = 'your_google_maps_api_key_here'  # Replace with actual Google Maps API key
+
+# Base URL for callbacks
+BASE_URL = 'http://localhost:8000'  # Change to https://yourdomain.com for production
+
+# Payment Gateway Configuration
+# Khalti Configuration
+KHALTI_PUBLIC_KEY = '7209e3b619414160b3f4ede169a6ad05'  # Replace with your actual live public key
+KHALTI_SECRET_KEY = '0e7e4c9dba5547f69c3f8954c6093e95'  # Replace with your actual live secret key
+
+# eSewa Configuration  
+ESEWA_MERCHANT_CODE = 'test_merchant'  # Replace with your actual merchant code
+ESEWA_SUCCESS_URL = BASE_URL + '/payment/esewa/success/'
+ESEWA_FAILURE_URL = BASE_URL + '/payment/esewa/failure/'
+
+# Logging Configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'kawadiwala.log',
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'core': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}

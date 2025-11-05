@@ -1,0 +1,613 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Custom Admin Dashboard - Kawadiwala{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.css" rel="stylesheet">
+<style>
+.admin-sidebar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 250px;
+    z-index: 1000;
+    transition: all 0.3s;
+}
+
+.admin-content {
+    margin-left: 250px;
+    padding: 20px;
+    transition: all 0.3s;
+}
+
+.sidebar-brand {
+    padding: 20px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.sidebar-nav {
+    padding: 20px 0;
+}
+
+.nav-item {
+    margin: 5px 15px;
+}
+
+.nav-link {
+    color: rgba(255,255,255,0.8);
+    padding: 12px 20px;
+    border-radius: 10px;
+    transition: all 0.3s;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+.nav-link:hover, .nav-link.active {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    transform: translateX(5px);
+}
+
+.nav-link i {
+    margin-right: 10px;
+    width: 20px;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: all 0.3s;
+    border: none;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.stat-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: white;
+    margin-bottom: 15px;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 15px;
+    padding: 25px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.activity-item {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: all 0.3s;
+}
+
+.activity-item:hover {
+    background: #f8f9fa;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.system-health {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.health-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+}
+
+.health-good { background: #28a745; }
+.health-warning { background: #ffc107; }
+.health-danger { background: #dc3545; }
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.mobile-toggle {
+    display: none;
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 1001;
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+@media (max-width: 768px) {
+    .admin-sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .admin-sidebar.show {
+        transform: translateX(0);
+    }
+    
+    .admin-content {
+        margin-left: 0;
+    }
+    
+    .mobile-toggle {
+        display: block;
+    }
+}
+
+.quick-action-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 10px;
+    transition: all 0.3s;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Mobile Toggle Button -->
+<button class="mobile-toggle" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- Admin Sidebar -->
+<div class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-brand">
+        <h4 class="text-white mb-0">
+            <i class="fas fa-recycle me-2"></i>Kawadiwala
+        </h4>
+        <small class="text-white-50">Admin Panel</small>
+    </div>
+    
+    <nav class="sidebar-nav">
+        <div class="nav-item">
+            <a href="{% url 'custom_admin_dashboard' %}" class="nav-link active">
+                <i class="fas fa-tachometer-alt"></i>Dashboard
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{% url 'admin_user_management' %}" class="nav-link">
+                <i class="fas fa-users"></i>User Management
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{% url 'admin_pickup_management' %}" class="nav-link">
+                <i class="fas fa-clipboard-list"></i>Pickup Management
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{% url 'admin_analytics_dashboard' %}" class="nav-link">
+                <i class="fas fa-chart-bar"></i>Analytics
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{% url 'payment_history' %}" class="nav-link">
+                <i class="fas fa-credit-card"></i>Payments
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{% url 'admin_system_settings' %}" class="nav-link">
+                <i class="fas fa-cog"></i>Settings
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="/admin/" class="nav-link" target="_blank">
+                <i class="fas fa-external-link-alt"></i>Django Admin
+            </a>
+        </div>
+        <div class="nav-item mt-4">
+            <a href="{% url 'dashboard' %}" class="nav-link">
+                <i class="fas fa-arrow-left"></i>Back to Main
+            </a>
+        </div>
+    </nav>
+</div>
+
+<!-- Main Content -->
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">Admin Dashboard</h2>
+            <p class="text-muted mb-0">Welcome back! Here's what's happening with your system.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn quick-action-btn" onclick="refreshDashboard()">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+            <button class="btn quick-action-btn" data-bs-toggle="modal" data-bs-target="#quickActionsModal">
+                <i class="fas fa-bolt me-1"></i>Quick Actions
+            </button>
+        </div>
+    </div>
+
+    <!-- System Health Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-2">System Health</h5>
+                        <div class="system-health">
+                            <div class="health-indicator health-good"></div>
+                            <span class="text-success">All Systems Operational</span>
+                        </div>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">Last updated: {{ now|date:"M d, Y H:i" }}</small>
+                        <br>
+                        <small class="text-muted">
+                            Active Collectors: {{ system_health.active_collectors }} | 
+                            SMS Success: {{ system_health.sms_sent_today }} | 
+                            Payment Success: {{ system_health.payment_success_rate|floatformat:1 }}%
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #667eea, #764ba2);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3 class="mb-1">{{ user_stats.total }}</h3>
+                <p class="text-muted mb-2">Total Users</p>
+                <small class="text-success">
+                    <i class="fas fa-arrow-up me-1"></i>+{{ user_stats.new_this_week }} this week
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <h3 class="mb-1">{{ pickup_stats.total }}</h3>
+                <p class="text-muted mb-2">Total Pickups</p>
+                <small class="text-info">
+                    <i class="fas fa-clock me-1"></i>{{ pickup_stats.pending }} pending
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h3 class="mb-1">Rs {{ financial_stats.total_revenue|floatformat:0 }}</h3>
+                <p class="text-muted mb-2">Total Revenue</p>
+                <small class="text-warning">
+                    <i class="fas fa-chart-line me-1"></i>Avg: Rs {{ financial_stats.avg_transaction|floatformat:0 }}
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                    <i class="fas fa-leaf"></i>
+                </div>
+                <h3 class="mb-1">{{ env_stats.total_weight|floatformat:1 }}kg</h3>
+                <p class="text-muted mb-2">Waste Recycled</p>
+                <small class="text-success">
+                    <i class="fas fa-tree me-1"></i>{{ env_stats.trees_saved|floatformat:1 }} trees saved
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4">
+            <div class="chart-container">
+                <h5 class="mb-3">Pickup Trends</h5>
+                <canvas id="pickupTrendsChart" height="100"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-4">
+            <div class="chart-container">
+                <h5 class="mb-3">Status Distribution</h5>
+                <canvas id="statusChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity and Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Recent Pickups</h5>
+                    <a href="{% url 'admin_pickup_management' %}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                
+                {% if recent_pickups %}
+                    {% for pickup in recent_pickups|slice:":5" %}
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>#{{ pickup.id }}</strong> - {{ pickup.customer.username }}
+                                <br>
+                                <small class="text-muted">
+                                    {{ pickup.waste_category.name }} | {{ pickup.created_at|timesince }} ago
+                                </small>
+                            </div>
+                            <div>
+                                <span class="badge 
+                                    {% if pickup.status == 'completed' %}bg-success
+                                    {% elif pickup.status == 'pending' %}bg-warning
+                                    {% elif pickup.status == 'assigned' %}bg-info
+                                    {% elif pickup.status == 'in_progress' %}bg-primary
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ pickup.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No recent pickups</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Recent Users</h5>
+                    <a href="{% url 'admin_user_management' %}" class="btn btn-sm btn-outline-primary">Manage Users</a>
+                </div>
+                
+                {% if recent_users %}
+                    {% for user in recent_users|slice:":5" %}
+                    <div class="activity-item">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ user.email|default:"No email" }} | Joined {{ user.date_joined|timesince }} ago
+                                </small>
+                            </div>
+                            <div>
+                                <span class="badge 
+                                    {% if user.role == 'admin' %}bg-danger
+                                    {% elif user.role == 'collector' %}bg-info
+                                    {% else %}bg-success{% endif %}">
+                                    {{ user.get_role_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No recent users</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Environmental Impact -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-3">Environmental Impact</h5>
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            <i class="fas fa-weight-hanging"></i>
+                        </div>
+                        <h4>{{ env_stats.total_weight|floatformat:1 }}kg</h4>
+                        <p class="text-muted">Total Recycled</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto" style="background: linear-gradient(135deg, #198754, #20c997);">
+                            <i class="fas fa-tree"></i>
+                        </div>
+                        <h4>{{ env_stats.trees_saved|floatformat:1 }}</h4>
+                        <p class="text-muted">Trees Saved</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto" style="background: linear-gradient(135deg, #0dcaf0, #6f42c1);">
+                            <i class="fas fa-cloud"></i>
+                        </div>
+                        <h4>{{ env_stats.co2_reduced|floatformat:1 }}kg</h4>
+                        <p class="text-muted">CO₂ Reduced</p>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto" style="background: linear-gradient(135deg, #0d6efd, #6610f2);">
+                            <i class="fas fa-tint"></i>
+                        </div>
+                        <h4>{{ env_stats.water_saved|floatformat:1 }}L</h4>
+                        <p class="text-muted">Water Saved</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions Modal -->
+<div class="modal fade" id="quickActionsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quick Actions</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="window.location.href='{% url 'admin_user_management' %}'">
+                            <i class="fas fa-user-plus me-2"></i>Add New User
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-success w-100" onclick="exportData('pickups')">
+                            <i class="fas fa-download me-2"></i>Export Pickups
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-info w-100" onclick="window.location.href='{% url 'live_tracking_dashboard' %}'">
+                            <i class="fas fa-map-marker-alt me-2"></i>Live Tracking
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-warning w-100" onclick="sendBulkSMS()">
+                            <i class="fas fa-sms me-2"></i>Send Bulk SMS
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Sidebar toggle for mobile
+function toggleSidebar() {
+    const sidebar = document.getElementById('adminSidebar');
+    sidebar.classList.toggle('show');
+}
+
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    // Pickup Trends Chart
+    const pickupCtx = document.getElementById('pickupTrendsChart').getContext('2d');
+    new Chart(pickupCtx, {
+        type: 'line',
+        data: {
+            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+            datasets: [{
+                label: 'Pickups',
+                data: [12, 19, 15, 25, 22, 30],
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+
+    // Status Distribution Chart
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    const pickupData = {
+        completed: {{ pickup_stats.completed|default:0 }},
+        pending: {{ pickup_stats.pending|default:0 }},
+        in_progress: {{ pickup_stats.in_progress|default:0 }},
+        cancelled: {{ pickup_stats.cancelled|default:0 }}
+    };
+    
+    new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completed', 'Pending', 'In Progress', 'Cancelled'],
+            datasets: [{
+                data: [pickupData.completed, pickupData.pending, pickupData.in_progress, pickupData.cancelled],
+                backgroundColor: ['#28a745', '#ffc107', '#17a2b8', '#dc3545']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+});
+
+// Dashboard functions
+function refreshDashboard() {
+    location.reload();
+}
+
+function exportData(type) {
+    window.open(`{% url 'admin_export_data' %}?type=${type}&format=csv`, '_blank');
+}
+
+function sendBulkSMS() {
+    // Implement bulk SMS functionality
+    alert('Bulk SMS feature coming soon!');
+}
+
+// Auto-refresh dashboard every 5 minutes
+setInterval(function() {
+    // Only refresh stats, not the entire page
+    fetch(window.location.href, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Update specific sections without full page reload
+        console.log('Dashboard stats updated');
+    });
+}, 300000); // 5 minutes
+</script>
+{% endblock %}

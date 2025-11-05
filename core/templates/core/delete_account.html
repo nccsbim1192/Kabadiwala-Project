@@ -1,0 +1,187 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Delete Account - Online Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-danger text-white text-center">
+                    <h3 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Delete Account
+                    </h3>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Warning Message -->
+                    <div class="alert alert-danger" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-warning me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h5>
+                        <p class="mb-0">
+                            You are about to permanently delete your account. This will remove all your data including:
+                        </p>
+                    </div>
+
+                    <!-- What will be deleted -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-muted mb-3">The following data will be permanently removed:</h6>
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex align-items-center">
+                                    <i class="fas fa-user text-danger me-3"></i>
+                                    <div>
+                                        <strong>Profile Information</strong>
+                                        <br><small class="text-muted">Username, email, phone, and personal details</small>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <i class="fas fa-recycle text-danger me-3"></i>
+                                    <div>
+                                        <strong>Pickup History</strong>
+                                        <br><small class="text-muted">All your waste pickup requests and records</small>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <i class="fas fa-credit-card text-danger me-3"></i>
+                                    <div>
+                                        <strong>Transaction History</strong>
+                                        <br><small class="text-muted">Payment records and transaction details</small>
+                                    </div>
+                                </li>
+                                <li class="list-group-item d-flex align-items-center">
+                                    <i class="fas fa-leaf text-danger me-3"></i>
+                                    <div>
+                                        <strong>Environmental Impact Data</strong>
+                                        <br><small class="text-muted">Your contribution to environmental conservation</small>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Current User Info -->
+                    <div class="bg-light rounded p-3 mb-4">
+                        <h6 class="text-muted mb-2">Account to be deleted:</h6>
+                        <div class="d-flex align-items-center">
+                            <div class="bg-white rounded-circle p-2 me-3">
+                                <i class="fas fa-user text-primary"></i>
+                            </div>
+                            <div>
+                                <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                <br><small class="text-muted">{{ user.email }}</small>
+                                <br><small class="badge bg-secondary">{{ user.get_role_display }}</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Alternatives -->
+                    <div class="alert alert-info" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-lightbulb me-2"></i>
+                            Consider these alternatives:
+                        </h6>
+                        <ul class="mb-0">
+                            <li>Update your profile information instead of deleting</li>
+                            <li>Contact support if you're having issues with your account</li>
+                            <li>Take a break - you can always come back later</li>
+                        </ul>
+                    </div>
+
+                    <!-- Confirmation Form -->
+                    <form method="post" id="deleteAccountForm">
+                        {% csrf_token %}
+                        
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                            <label class="form-check-label" for="confirmDelete">
+                                <strong>I understand that this action is permanent and cannot be undone</strong>
+                            </label>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg" id="deleteButton" disabled>
+                                <i class="fas fa-trash-alt me-2"></i>
+                                Yes, Delete My Account Permanently
+                            </button>
+                            <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Cancel and Go Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Footer -->
+                <div class="card-footer text-center bg-light">
+                    <small class="text-muted">
+                        <i class="fas fa-shield-alt me-1"></i>
+                        Your data privacy and security are important to us
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmDelete');
+    const deleteButton = document.getElementById('deleteButton');
+    const deleteForm = document.getElementById('deleteAccountForm');
+
+    // Enable/disable delete button based on checkbox
+    confirmCheckbox.addEventListener('change', function() {
+        deleteButton.disabled = !this.checked;
+    });
+
+    // Additional confirmation on form submission
+    deleteForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Double confirmation
+        const confirmed = confirm(
+            'FINAL CONFIRMATION:\n\n' +
+            'Are you absolutely sure you want to delete your account?\n\n' +
+            'This action is PERMANENT and CANNOT be undone.\n\n' +
+            'Type "DELETE" in the next prompt to confirm.'
+        );
+        
+        if (confirmed) {
+            const finalConfirm = prompt(
+                'Type "DELETE" (in capital letters) to confirm account deletion:'
+            );
+            
+            if (finalConfirm === 'DELETE') {
+                // Show loading state
+                deleteButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Deleting Account...';
+                deleteButton.disabled = true;
+                
+                // Submit the form
+                this.submit();
+            } else {
+                alert('Account deletion cancelled. The confirmation text did not match.');
+            }
+        }
+    });
+
+    // Warn user before leaving page
+    let formSubmitted = false;
+    deleteForm.addEventListener('submit', function() {
+        formSubmitted = true;
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (!formSubmitted && confirmCheckbox.checked) {
+            e.preventDefault();
+            e.returnValue = 'Are you sure you want to leave? Your account deletion process will be cancelled.';
+        }
+    });
+});
+</script>
+{% endblock %}

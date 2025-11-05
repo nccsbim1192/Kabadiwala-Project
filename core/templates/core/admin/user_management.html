@@ -1,0 +1,573 @@
+{% extends 'core/admin/dashboard.html' %}
+{% load static %}
+
+{% block title %}User Management - Custom Admin{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">User Management</h2>
+            <p class="text-muted mb-0">Manage all system users and their permissions</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn quick-action-btn" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                <i class="fas fa-user-plus me-1"></i>Create User
+            </button>
+            <button class="btn quick-action-btn" onclick="exportUsers()">
+                <i class="fas fa-download me-1"></i>Export Users
+            </button>
+        </div>
+    </div>
+
+    <!-- User Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                    <i class="fas fa-user"></i>
+                </div>
+                <h3 class="mb-1">{{ role_stats.customers }}</h3>
+                <p class="text-muted mb-0">Customers</p>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                    <i class="fas fa-truck"></i>
+                </div>
+                <h3 class="mb-1">{{ role_stats.collectors }}</h3>
+                <p class="text-muted mb-0">Collectors</p>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #e83e8c);">
+                    <i class="fas fa-user-shield"></i>
+                </div>
+                <h3 class="mb-1">{{ role_stats.admins }}</h3>
+                <p class="text-muted mb-0">Administrators</p>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <h3 class="mb-1">{{ role_stats.active }}</h3>
+                <p class="text-muted mb-0">Active Users</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Role Filter</label>
+                        <select name="role" class="form-select">
+                            <option value="all" {% if current_filters.role == 'all' %}selected{% endif %}>All Roles</option>
+                            {% for role_code, role_display in role_choices %}
+                                <option value="{{ role_code }}" {% if current_filters.role == role_code %}selected{% endif %}>
+                                    {{ role_display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Status Filter</label>
+                        <select name="status" class="form-select">
+                            <option value="all" {% if current_filters.status == 'all' %}selected{% endif %}>All Status</option>
+                            <option value="active" {% if current_filters.status == 'active' %}selected{% endif %}>Active</option>
+                            <option value="inactive" {% if current_filters.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Search</label>
+                        <input type="text" name="search" class="form-control" placeholder="Search users..." value="{{ current_filters.search }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <button type="submit" class="btn quick-action-btn w-100">
+                            <i class="fas fa-search me-1"></i>Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Users ({{ page_obj.paginator.count }} total)</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" onclick="bulkAction('delete')" id="bulkDeleteBtn" style="display: none;">
+                            <i class="fas fa-trash me-1"></i>Delete Selected
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="bulkAction('deactivate')" id="bulkDeactivateBtn" style="display: none;">
+                            <i class="fas fa-user-slash me-1"></i>Deactivate Selected
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="bulkAction('activate')" id="bulkActivateBtn" style="display: none;">
+                            <i class="fas fa-user-check me-1"></i>Activate Selected
+                        </button>
+                    </div>
+                </div>
+
+                {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                </th>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Joined</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in page_obj %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="user_ids" value="{{ user.id }}" class="user-checkbox" onchange="updateBulkButtons()">
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-sm me-3">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                        <div>
+                                            <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                            <br>
+                                            <small class="text-muted">{{ user.email|default:"No email" }}</small>
+                                            {% if user.phone %}
+                                                <br><small class="text-muted">{{ user.phone }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if user.role == 'admin' %}bg-danger
+                                        {% elif user.role == 'collector' %}bg-info
+                                        {% else %}bg-success{% endif %}">
+                                        <i class="fas fa-{% if user.role == 'admin' %}user-shield{% elif user.role == 'collector' %}truck{% else %}user{% endif %} me-1"></i>
+                                        {{ user.get_role_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ user.date_joined|date:"M d, Y" }}</small>
+                                </td>
+                                <td>
+                                    {% if user.last_login %}
+                                        <small class="text-muted">{{ user.last_login|timesince }} ago</small>
+                                    {% else %}
+                                        <small class="text-muted">Never</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editUser({{ user.id }}, '{{ user.username }}', '{{ user.first_name }}', '{{ user.last_name }}', '{{ user.email }}', '{{ user.phone }}', '{{ user.role }}', {{ user.is_active|yesno:'true,false' }})" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="viewUserDetails({{ user.id }})" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if user.role != 'admin' or user != request.user %}
+                                        <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }}, '{{ user.username }}')" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="User pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_filters.role != 'all' %}&role={{ current_filters.role }}{% endif %}{% if current_filters.status != 'all' %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if current_filters.role != 'all' %}&role={{ current_filters.role }}{% endif %}{% if current_filters.status != 'all' %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_filters.role != 'all' %}&role={{ current_filters.role }}{% endif %}{% if current_filters.status != 'all' %}&status={{ current_filters.status }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No users found</h5>
+                    <p class="text-muted">Try adjusting your filters or create a new user.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createUserForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username *</label>
+                            <input type="text" name="username" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email *</label>
+                            <input type="email" name="email" class="form-control" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Role *</label>
+                            <select name="role" class="form-select" required>
+                                <option value="">Select Role</option>
+                                {% for role_code, role_display in role_choices %}
+                                    <option value="{{ role_code }}">{{ role_display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Password *</label>
+                            <input type="password" name="password" class="form-control" required>
+                            <small class="form-text text-muted">Minimum 8 characters</small>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" checked>
+                                <label class="form-check-label">Active User</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn quick-action-btn">
+                        <i class="fas fa-user-plus me-1"></i>Create User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editUserForm">
+                <div class="modal-body">
+                    <input type="hidden" name="user_id" id="editUserId">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Username</label>
+                            <input type="text" name="username" id="editUsername" class="form-control" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" id="editEmail" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">First Name</label>
+                            <input type="text" name="first_name" id="editFirstName" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" name="last_name" id="editLastName" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" name="phone" id="editPhone" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Role</label>
+                            <select name="role" id="editRole" class="form-select">
+                                {% for role_code, role_display in role_choices %}
+                                    <option value="{{ role_code }}">{{ role_display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive">
+                                <label class="form-check-label">Active User</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn quick-action-btn">
+                        <i class="fas fa-save me-1"></i>Update User
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+// User management functions
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkButtons();
+}
+
+function updateBulkButtons() {
+    const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+    const bulkButtons = ['bulkDeleteBtn', 'bulkActivateBtn', 'bulkDeactivateBtn'];
+    
+    bulkButtons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (selectedCheckboxes.length > 0) {
+            btn.style.display = 'inline-block';
+        } else {
+            btn.style.display = 'none';
+        }
+    });
+}
+
+function bulkAction(action) {
+    const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+    const userIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (userIds.length === 0) {
+        alert('Please select at least one user.');
+        return;
+    }
+    
+    const actionText = action === 'delete' ? 'delete' : 
+                      action === 'activate' ? 'activate' : 'deactivate';
+    
+    if (confirm(`Are you sure you want to ${actionText} ${userIds.length} user(s)?`)) {
+        fetch('{% url "admin_bulk_actions" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                action: action,
+                model_type: 'users',
+                item_ids: userIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('An error occurred: ' + error.message, 'error');
+        });
+    }
+}
+
+function editUser(id, username, firstName, lastName, email, phone, role, isActive) {
+    document.getElementById('editUserId').value = id;
+    document.getElementById('editUsername').value = username;
+    document.getElementById('editFirstName').value = firstName;
+    document.getElementById('editLastName').value = lastName;
+    document.getElementById('editEmail').value = email;
+    document.getElementById('editPhone').value = phone;
+    document.getElementById('editRole').value = role;
+    document.getElementById('editIsActive').checked = isActive;
+    
+    new bootstrap.Modal(document.getElementById('editUserModal')).show();
+}
+
+function deleteUser(id, username) {
+    if (confirm(`Are you sure you want to delete user "${username}"? This action cannot be undone.`)) {
+        bulkAction('delete');
+    }
+}
+
+function viewUserDetails(id) {
+    // Implement user details view
+    alert('User details view coming soon!');
+}
+
+function exportUsers() {
+    window.open('{% url "admin_export_data" %}?type=users&format=csv', '_blank');
+}
+
+// Form submissions
+document.getElementById('createUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.is_active = formData.has('is_active');
+    
+    fetch('{% url "admin_create_user" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred: ' + error.message, 'error');
+    });
+});
+
+document.getElementById('editUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const data = Object.fromEntries(formData.entries());
+    data.is_active = formData.has('is_active');
+    const userId = data.user_id;
+    delete data.user_id;
+    
+    fetch(`/custom-admin/users/${userId}/update/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showAlert('An error occurred: ' + error.message, 'error');
+    });
+});
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

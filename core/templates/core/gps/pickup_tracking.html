@@ -1,0 +1,346 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Track Pickup #{{ pickup_request.id }} - Kawadiwala{% endblock %}
+
+{% block extra_css %}
+<style>
+#map {
+    height: 500px;
+    width: 100%;
+    border-radius: 10px;
+}
+
+.tracking-info {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.status-badge {
+    font-size: 1.1em;
+    padding: 8px 16px;
+}
+
+.collector-info {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.journey-stats {
+    display: flex;
+    justify-content: space-around;
+    text-align: center;
+}
+
+.journey-stat {
+    flex: 1;
+}
+
+.journey-stat h4 {
+    margin: 0;
+    color: #28a745;
+}
+
+.journey-stat p {
+    margin: 5px 0 0 0;
+    font-size: 0.9em;
+    opacity: 0.8;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="tracking-info">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h3><i class="fas fa-map-marker-alt me-2"></i>Tracking Pickup #{{ pickup_request.id }}</h3>
+                        <p class="mb-2">{{ pickup_request.waste_category.name }} - {{ pickup_request.actual_weight_kg|default:pickup_request.estimated_weight_kg }}kg</p>
+                        <p class="mb-0">{{ pickup_request.address }}</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <span class="badge status-badge 
+                            {% if pickup_request.status == 'completed' %}bg-success
+                            {% elif pickup_request.status == 'in_progress' %}bg-warning
+                            {% elif pickup_request.status == 'assigned' %}bg-info
+                            {% else %}bg-secondary{% endif %}">
+                            {{ pickup_request.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if pickup_request.collector %}
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="collector-info">
+                <h5><i class="fas fa-user me-2"></i>Collector Information</h5>
+                <p><strong>Name:</strong> {{ pickup_request.collector.get_full_name|default:pickup_request.collector.username }}</p>
+                <p><strong>Phone:</strong> {{ pickup_request.collector.phone|default:"Not provided" }}</p>
+                {% if collector_location %}
+                <p><strong>Last Location Update:</strong> {{ collector_location.timestamp|timesince }} ago</p>
+                <a href="{{ collector_location.google_maps_url }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="fas fa-external-link-alt me-1"></i>View on Google Maps
+                </a>
+                {% else %}
+                <p><em>Location not available</em></p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="collector-info">
+                <h5><i class="fas fa-route me-2"></i>Journey Statistics</h5>
+                <div class="journey-stats">
+                    <div class="journey-stat">
+                        <h4>{{ tracking_data|length }}</h4>
+                        <p>Location Updates</p>
+                    </div>
+                    <div class="journey-stat">
+                        <h4 id="totalDistance">--</h4>
+                        <p>Distance Traveled</p>
+                    </div>
+                    <div class="journey-stat">
+                        <h4 id="estimatedTime">--</h4>
+                        <p>Journey Time</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-map me-2"></i>Live Tracking Map</h5>
+                </div>
+                <div class="card-body">
+                    <div id="map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if tracking_data %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-history me-2"></i>Location History</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Location</th>
+                                    <th>Status</th>
+                                    <th>Distance to Pickup</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for location in tracking_data %}
+                                <tr>
+                                    <td>{{ location.timestamp|date:"M d, Y H:i" }}</td>
+                                    <td>{{ location.latitude|floatformat:6 }}, {{ location.longitude|floatformat:6 }}</td>
+                                    <td>
+                                        {% if location.is_at_pickup %}
+                                            <span class="badge bg-success">At Pickup Location</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">En Route</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if location.distance_to_pickup %}
+                                            {{ location.distance_to_pickup|floatformat:2 }} km
+                                        {% else %}
+                                            --
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Auto-refresh for live tracking -->
+<div class="position-fixed bottom-0 end-0 p-3">
+    <div class="toast" id="refreshToast" role="alert">
+        <div class="toast-body">
+            <i class="fas fa-sync-alt me-2"></i>Refreshing location data...
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let map;
+let markers = [];
+let trackingData = JSON.parse('{{ tracking_data|escapejs }}');
+let collectorLocation = JSON.parse('{{ collector_location|escapejs }}');
+
+function initMap() {
+    // Default center (Kathmandu, Nepal)
+    let center = { lat: 27.7172, lng: 85.3240 };
+    
+    // If we have tracking data, center on the latest location
+    if (trackingData.length > 0) {
+        let latest = trackingData[trackingData.length - 1];
+        center = { lat: parseFloat(latest.latitude), lng: parseFloat(latest.longitude) };
+    }
+    
+    map = new google.maps.Map(document.getElementById('map'), {
+        zoom: 13,
+        center: center,
+        mapTypeId: 'roadmap'
+    });
+    
+    // Add tracking path
+    if (trackingData.length > 0) {
+        addTrackingPath();
+    }
+    
+    // Add current collector location
+    if (collectorLocation && collectorLocation.success) {
+        addCollectorMarker();
+    }
+    
+    // Add pickup location marker
+    addPickupLocationMarker();
+}
+
+function addTrackingPath() {
+    const path = trackingData.map(point => ({
+        lat: parseFloat(point.latitude),
+        lng: parseFloat(point.longitude)
+    }));
+    
+    // Create polyline for the path
+    const trackingPath = new google.maps.Polyline({
+        path: path,
+        geodesic: true,
+        strokeColor: '#28a745',
+        strokeOpacity: 1.0,
+        strokeWeight: 3
+    });
+    
+    trackingPath.setMap(map);
+    
+    // Add markers for key points
+    trackingData.forEach((point, index) => {
+        if (index === 0 || index === trackingData.length - 1 || point.is_at_pickup) {
+            let icon = 'https://maps.google.com/mapfiles/ms/icons/';
+            let title = '';
+            
+            if (index === 0) {
+                icon += 'green-dot.png';
+                title = 'Journey Start';
+            } else if (index === trackingData.length - 1) {
+                icon += 'red-dot.png';
+                title = 'Current/Last Position';
+            } else if (point.is_at_pickup) {
+                icon += 'yellow-dot.png';
+                title = 'At Pickup Location';
+            }
+            
+            const marker = new google.maps.Marker({
+                position: { lat: parseFloat(point.latitude), lng: parseFloat(point.longitude) },
+                map: map,
+                icon: icon,
+                title: title
+            });
+            
+            markers.push(marker);
+        }
+    });
+}
+
+function addCollectorMarker() {
+    const collectorMarker = new google.maps.Marker({
+        position: { 
+            lat: parseFloat(collectorLocation.latitude), 
+            lng: parseFloat(collectorLocation.longitude) 
+        },
+        map: map,
+        icon: {
+            url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+            scaledSize: new google.maps.Size(32, 32)
+        },
+        title: 'Collector Current Location'
+    });
+    
+    const infoWindow = new google.maps.InfoWindow({
+        content: `
+            <div>
+                <h6>Collector Location</h6>
+                <p>Last updated: ${new Date(collectorLocation.timestamp).toLocaleString()}</p>
+                <p>Accuracy: ${collectorLocation.accuracy}m</p>
+            </div>
+        `
+    });
+    
+    collectorMarker.addListener('click', () => {
+        infoWindow.open(map, collectorMarker);
+    });
+    
+    markers.push(collectorMarker);
+}
+
+function addPickupLocationMarker() {
+    // This would need pickup location coordinates
+    // For now, we'll add a placeholder marker at the center
+    const pickupMarker = new google.maps.Marker({
+        position: map.getCenter(),
+        map: map,
+        icon: {
+            url: 'https://maps.google.com/mapfiles/ms/icons/orange-dot.png',
+            scaledSize: new google.maps.Size(32, 32)
+        },
+        title: 'Pickup Location'
+    });
+    
+    markers.push(pickupMarker);
+}
+
+// Auto-refresh every 30 seconds for active pickups
+const pickupStatus = '{{ pickup_request.status }}';
+if (pickupStatus === 'assigned' || pickupStatus === 'in_progress') {
+    setInterval(() => {
+        // Show refresh toast
+        const toast = new bootstrap.Toast(document.getElementById('refreshToast'));
+        toast.show();
+        
+        // Refresh the page to get updated location data
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+    }, 30000);
+}
+
+// Initialize map when page loads
+window.onload = initMap;
+</script>
+
+<!-- Google Maps API -->
+<script async defer 
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&callback=initMap">
+</script>
+{% endblock %}

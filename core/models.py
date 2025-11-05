@@ -90,8 +90,8 @@ class PickupRequest(models.Model):
         # Calculate actual price if actual weight is provided
         if self.actual_weight_kg:
             # Ensure actual_weight_kg is a Decimal for calculation
-            if isinstance(self.actual_weight_kg, str):
-                self.actual_weight_kg = Decimal(self.actual_weight_kg)
+            if isinstance(self.actual_weight_kg, (str, float, int)):
+                self.actual_weight_kg = Decimal(str(self.actual_weight_kg))
             self.actual_price = self.actual_weight_kg * self.waste_category.rate_per_kg
             
         # Set completed_at when status changes to completed
@@ -115,6 +115,24 @@ class PickupRequest(models.Model):
 
 
 class Transaction(models.Model):
+    PAYMENT_METHOD_CHOICES = (
+        ('cash', 'Cash'),
+        ('esewa', 'eSewa'),
+        ('khalti', 'Khalti'),
+        ('ime_pay', 'IME Pay'),
+        ('fonepay', 'FonePay'),
+        ('bank_transfer', 'Bank Transfer'),
+    )
+    
+    PAYMENT_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+        ('cancelled', 'Cancelled'),
+    )
+    
     pickup_request = models.OneToOneField(PickupRequest, on_delete=models.CASCADE)
     customer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='customer_transactions')
     collector = models.ForeignKey(User, on_delete=models.CASCADE, related_name='collector_transactions')
@@ -122,11 +140,17 @@ class Transaction(models.Model):
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     collector_commission = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     
-    payment_method = models.CharField(max_length=20, default='cash')
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES, default='cash')
     payment_gateway = models.CharField(max_length=20, blank=True)
     gateway_transaction_id = models.CharField(max_length=100, blank=True)
     gateway_response = models.JSONField(blank=True, null=True)
-    payment_status = models.CharField(max_length=20, default='pending')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    
+    # Enhanced payment fields
+    payment_initiated_at = models.DateTimeField(null=True, blank=True)
+    payment_completed_at = models.DateTimeField(null=True, blank=True)
+    refund_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    refund_reason = models.TextField(blank=True)
     
     transaction_date = models.DateTimeField(auto_now_add=True)
     is_paid = models.BooleanField(default=False)
@@ -184,3 +208,267 @@ class EnvironmentalImpact(models.Model):
 
 # Keep the RecyclingImpact model as an alias for compatibility
 RecyclingImpact = EnvironmentalImpact
+
+
+class SMSNotification(models.Model):
+    """Model to track SMS notifications sent to users"""
+    NOTIFICATION_TYPE_CHOICES = (
+        ('pickup_assigned', 'Pickup Assigned'),
+        ('pickup_completed', 'Pickup Completed'),
+        ('payment_received', 'Payment Received'),
+        ('status_update', 'Status Update'),
+        ('reminder', 'Reminder'),
+        ('welcome', 'Welcome Message'),
+    )
+    
+    STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+        ('delivered', 'Delivered'),
+    )
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sms_notifications')
+    pickup_request = models.ForeignKey(PickupRequest, on_delete=models.CASCADE, null=True, blank=True)
+    phone_number = models.CharField(max_length=15)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPE_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    
+    # SMS Gateway fields
+    gateway_message_id = models.CharField(max_length=100, blank=True)
+    gateway_response = models.JSONField(blank=True, null=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"SMS to {self.phone_number} - {self.notification_type}"
+
+
+class CollectorLocation(models.Model):
+    """Model to track real-time GPS location of collectors"""
+    collector = models.ForeignKey(User, on_delete=models.CASCADE, related_name='locations')
+    pickup_request = models.ForeignKey(PickupRequest, on_delete=models.CASCADE, null=True, blank=True)
+    
+    latitude = models.DecimalField(max_digits=10, decimal_places=8)
+    longitude = models.DecimalField(max_digits=11, decimal_places=8)
+    accuracy = models.FloatField(help_text="GPS accuracy in meters")
+    
+    # Location context
+    is_active = models.BooleanField(default=True)
+    is_at_pickup_location = models.BooleanField(default=False)
+    distance_to_pickup = models.FloatField(null=True, blank=True, help_text="Distance in kilometers")
+    
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['collector', '-timestamp']),
+            models.Index(fields=['pickup_request', '-timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.collector.username} location at {self.timestamp}"
+    
+    @property
+    def google_maps_url(self):
+        """Generate Google Maps URL for this location"""
+        return f"https://www.google.com/maps?q={self.latitude},{self.longitude}"
+
+
+class PaymentGatewayLog(models.Model):
+    """Model to log all payment gateway interactions"""
+    transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='gateway_logs')
+    gateway_name = models.CharField(max_length=50)  # esewa, khalti, etc.
+    request_data = models.JSONField()
+    response_data = models.JSONField(null=True, blank=True)
+    
+    status_code = models.IntegerField(null=True, blank=True)
+    error_message = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.gateway_name} log for Transaction #{self.transaction.id}"
+
+
+class CreditPackage(models.Model):
+    """Pre-defined credit packages for collectors to purchase"""
+    name = models.CharField(max_length=50)  # "Starter Pack", "Professional Pack"
+    purchase_amount = models.DecimalField(max_digits=10, decimal_places=2)  # Amount collector pays
+    credit_amount = models.DecimalField(max_digits=10, decimal_places=2)    # Credits they receive
+    commission_rate = models.DecimalField(max_digits=5, decimal_places=4, default=0.1000)  # 10%
+    
+    # Package features
+    is_active = models.BooleanField(default=True)
+    is_popular = models.BooleanField(default=False)  # Highlight popular packages
+    bonus_credits = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Extra credits for promotions
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    @property
+    def savings_percentage(self):
+        """Calculate how much collector saves vs paying commission per transaction"""
+        if self.purchase_amount > 0:
+            from decimal import Decimal
+            return float((self.purchase_amount - self.credit_amount) / self.purchase_amount) * 100
+        return 0
+    
+    def __str__(self):
+        return f"{self.name} - Pay Rs.{self.purchase_amount}, Get Rs.{self.credit_amount}"
+
+
+class CollectorCreditAccount(models.Model):
+    """Credit account for each collector"""
+    collector = models.OneToOneField(User, on_delete=models.CASCADE, related_name='credit_account')
+    current_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_purchased = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Lifetime purchases
+    total_used = models.DecimalField(max_digits=10, decimal_places=2, default=0)      # Lifetime usage
+    
+    # Account status
+    is_active = models.BooleanField(default=True)
+    low_balance_threshold = models.DecimalField(max_digits=10, decimal_places=2, default=100)  # Alert when below this
+    
+    # Security and limits
+    daily_usage_limit = models.DecimalField(max_digits=10, decimal_places=2, default=5000)
+    last_transaction_date = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def has_sufficient_balance(self, amount):
+        """Check if collector has enough credits for a transaction"""
+        return self.current_balance >= amount and self.is_active
+    
+    def deduct_credits(self, amount, pickup_request, description="Payment to customer"):
+        """Deduct credits for a customer payment"""
+        if self.has_sufficient_balance(amount):
+            balance_before = self.current_balance
+            self.current_balance -= amount
+            self.total_used += amount
+            self.last_transaction_date = timezone.now()
+            self.save()
+            
+            # Create transaction record
+            CreditTransaction.objects.create(
+                credit_account=self,
+                transaction_type='debit',
+                amount=amount,
+                pickup_request=pickup_request,
+                description=description,
+                balance_before=balance_before,
+                balance_after=self.current_balance
+            )
+            return True
+        return False
+    
+    def add_credits(self, amount, credit_purchase=None, description="Credit purchase"):
+        """Add credits to account"""
+        balance_before = self.current_balance
+        self.current_balance += amount
+        self.total_purchased += amount
+        self.save()
+        
+        CreditTransaction.objects.create(
+            credit_account=self,
+            transaction_type='credit',
+            amount=amount,
+            credit_purchase=credit_purchase,
+            description=description,
+            balance_before=balance_before,
+            balance_after=self.current_balance
+        )
+    
+    def is_low_balance(self):
+        """Check if balance is below threshold"""
+        return self.current_balance <= self.low_balance_threshold
+    
+    def __str__(self):
+        return f"{self.collector.username} Credits - Rs.{self.current_balance}"
+
+
+class CreditPurchase(models.Model):
+    """Record of credit purchases by collectors"""
+    PAYMENT_STATUS_CHOICES = (
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    )
+    
+    collector = models.ForeignKey(User, on_delete=models.CASCADE, related_name='credit_purchases')
+    package = models.ForeignKey(CreditPackage, on_delete=models.CASCADE)
+    
+    # Purchase details
+    amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
+    credits_received = models.DecimalField(max_digits=10, decimal_places=2)
+    bonus_credits = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Payment details
+    payment_method = models.CharField(max_length=50)  # "eSewa", "Khalti", "Cash", etc.
+    payment_reference = models.CharField(max_length=100, blank=True)
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    
+    # Timestamps
+    purchased_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    def complete_purchase(self):
+        """Complete the credit purchase and add credits to account"""
+        if self.payment_status == 'pending':
+            # Add credits to collector's account
+            credit_account, created = CollectorCreditAccount.objects.get_or_create(
+                collector=self.collector
+            )
+            
+            total_credits = self.credits_received + self.bonus_credits
+            credit_account.add_credits(total_credits, self, f"Credit purchase - {self.package.name}")
+            
+            # Update purchase status
+            self.payment_status = 'completed'
+            self.completed_at = timezone.now()
+            self.save()
+            
+            return True
+        return False
+    
+    def __str__(self):
+        return f"{self.collector.username} - {self.package.name} - Rs.{self.amount_paid}"
+
+
+class CreditTransaction(models.Model):
+    """Track all credit transactions (purchases and usage)"""
+    TRANSACTION_TYPE_CHOICES = (
+        ('credit', 'Credit Added'),
+        ('debit', 'Credit Used'),
+    )
+    
+    credit_account = models.ForeignKey(CollectorCreditAccount, on_delete=models.CASCADE, related_name='transactions')
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPE_CHOICES)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField()
+    
+    # References
+    pickup_request = models.ForeignKey(PickupRequest, on_delete=models.SET_NULL, null=True, blank=True)
+    credit_purchase = models.ForeignKey(CreditPurchase, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Balance tracking
+    balance_before = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    balance_after = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.transaction_type.title()} Rs.{self.amount} - {self.credit_account.collector.username}"

@@ -17,6 +17,9 @@
                     <p class="lead text-muted mb-0">Welcome back, {{ user.username }}!</p>
                 </div>
                 <div class="d-flex gap-2">
+                    <a href="{% url 'buy_credits' %}" class="btn btn-warning">
+                        <i class="fas fa-coins me-1"></i>Buy Credits
+                    </a>
                     <button class="btn btn-outline-success" onclick="refreshData()">
                         <i class="fas fa-sync-alt me-1"></i>Refresh
                     </button>
@@ -85,6 +88,29 @@
                             <small class="opacity-75">{{ completed_pickups|default:0 }} of {{ assigned_pickups.count|add:completed_pickups|default:0 }} completed</small>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Credit Balance -->
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card stat-card bg-gradient-warning text-white shadow-sm h-100">
+                <div class="card-body text-center">
+                    <div class="d-flex justify-content-center align-items-center mb-2">
+                        <i class="fas fa-wallet fa-2x me-2"></i>
+                        <h3 class="mb-0" id="creditBalance">Rs.{{ credit_balance|default:0|floatformat:0 }}</h3>
+                    </div>
+                    <p class="mb-0 fw-semibold">Credit Balance</p>
+                    <small class="opacity-75">
+                        {% if credit_balance|default:0 < 100 %}
+                            <i class="fas fa-exclamation-triangle me-1"></i>Low balance
+                        {% else %}
+                            Available for payments
+                        {% endif %}
+                        <br><button onclick="refreshCreditBalance()" class="btn btn-sm btn-outline-light mt-1">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </small>
                 </div>
             </div>
         </div>
@@ -475,21 +501,75 @@ function refreshData() {
     }, 1000);
 }
 
+// Refresh credit balance
+function refreshCreditBalance() {
+    console.log('Refreshing credit balance...');
+    fetch('/api/credit-balance/', {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('Credit balance response:', data);
+        if (data.success) {
+            const balanceElement = document.getElementById('creditBalance');
+            if (balanceElement) {
+                balanceElement.textContent = `Rs.${data.balance}`;
+                console.log('Updated balance display to:', `Rs.${data.balance}`);
+            } else {
+                console.error('Credit balance element not found!');
+            }
+            
+            // Update low balance warning
+            const warningAlert = document.querySelector('.alert-warning');
+            const currentBalance = parseFloat(data.raw_balance);
+            
+            if (currentBalance < 100 && !warningAlert) {
+                // Show low balance warning if balance is low
+                location.reload(); // Reload to show updated warnings
+            } else if (currentBalance >= 100 && warningAlert) {
+                // Hide warning if balance is sufficient
+                location.reload();
+            }
+        } else {
+            console.error('Credit balance API error:', data);
+        }
+    })
+    .catch(error => {
+        console.error('Error refreshing balance:', error);
+    });
+}
+
+// Assign pickup function
 function assignPickup(pickupId) {
     if (confirm('Are you sure you want to accept this pickup request?')) {
-        const button = event.target.closest('button');
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Accepting...';
-        button.disabled = true;
-        
-        // Redirect to assign URL
         window.location.href = `/assign-pickup/${pickupId}/`;
     }
 }
 
+// Check for credit purchase success and refresh balance
+document.addEventListener('DOMContentLoaded', function() {
+    // Refresh balance immediately on page load
+    setTimeout(refreshCreditBalance, 500);
+    
+    // Check if there's a success message about credit purchase
+    const messages = document.querySelectorAll('.alert-success');
+    messages.forEach(message => {
+        if (message.textContent.includes('Credit purchase successful')) {
+            // Refresh balance after 1 second
+            setTimeout(refreshCreditBalance, 1000);
+        }
+    });
+    
+    // Auto-refresh balance every 30 seconds
+    setInterval(refreshCreditBalance, 30000);
+});
+
 // Initialize tooltips
 document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });

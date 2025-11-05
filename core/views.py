@@ -8,6 +8,7 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from datetime import datetime, date
 from django.contrib.admin.views.decorators import staff_member_required
+from decimal import Decimal, InvalidOperation
 from django.core.paginator import Paginator
 import decimal
 
@@ -149,7 +150,6 @@ def collector_dashboard(request):
     
     # If no transactions exist, calculate from completed pickups (10% of actual_price)
     if total_earnings == 0:
-        from decimal import Decimal
         completed_earnings = completed_pickups.filter(
             actual_price__isnull=False
         ).aggregate(
@@ -173,6 +173,43 @@ def collector_dashboard(request):
         'recent_completed_pickups': recent_completed_pickups,
     }
     return render(request, 'core/dashboard_collector.html', context)
+
+
+@login_required
+def api_credit_balance(request):
+    """API endpoint to get current credit balance"""
+    if request.user.role != 'collector':
+        return JsonResponse({'success': False, 'error': 'Only collectors can access this'})
+    
+    from .models import CollectorCreditAccount, CreditPurchase, CreditTransaction
+    
+    # Get credit account
+    try:
+        credit_account = CollectorCreditAccount.objects.get(collector=request.user)
+        balance = float(credit_account.current_balance)
+        account_exists = True
+    except CollectorCreditAccount.DoesNotExist:
+        balance = 0.0
+        account_exists = False
+    
+    # Get purchase history for debugging
+    purchases = CreditPurchase.objects.filter(collector=request.user).count()
+    completed_purchases = CreditPurchase.objects.filter(collector=request.user, payment_status='completed').count()
+    transactions = CreditTransaction.objects.filter(credit_account__collector=request.user).count() if account_exists else 0
+    
+    return JsonResponse({
+        'success': True,
+        'balance': f'{balance:.0f}',
+        'raw_balance': balance,
+        'debug': {
+            'user': request.user.username,
+            'role': request.user.role,
+            'account_exists': account_exists,
+            'total_purchases': purchases,
+            'completed_purchases': completed_purchases,
+            'transactions': transactions
+        }
+    })
 
 @staff_member_required
 def admin_dashboard(request):
@@ -275,6 +312,14 @@ def assign_pickup(request, pickup_id):
     pickup.status = 'assigned'
     pickup.save()
     
+    # Send SMS notification to customer
+    try:
+        from .services import SMSService
+        SMSService.send_pickup_assigned_sms(pickup)
+    except Exception as e:
+        import logging
+        logging.error(f"SMS notification failed: {str(e)}")
+    
     messages.success(request, f'Pickup #{pickup.id} has been assigned to you!')
     return redirect('collector_dashboard')
 
@@ -372,11 +417,11 @@ def admin_update_pickup_status(request, pickup_id):
             # Validate weight for completed status
             if new_status == 'completed':
                 try:
-                    weight = float(actual_weight or 0)
+                    weight = Decimal(str(actual_weight or 0))
                     if weight <= 0:
                         raise ValueError('Please enter a valid weight greater than 0')
                     pickup.actual_weight_kg = weight
-                except (TypeError, ValueError) as e:
+                except (TypeError, ValueError, InvalidOperation) as e:
                     error_msg = str(e) if str(e) != 'float() argument must be a string or a real number, not ' else 'Please enter a valid weight'
                     if is_ajax:
                         return JsonResponse({'success': False, 'error': error_msg}, status=400)
@@ -392,12 +437,11 @@ def admin_update_pickup_status(request, pickup_id):
                 # Set actual price based on weight and category rate
                 if pickup.actual_weight_kg:
                     # Convert both values to Decimal for consistent calculation
-                    from decimal import Decimal
                     try:
                         weight = Decimal(str(pickup.actual_weight_kg))
                         if weight > 0:
                             pickup.actual_price = weight * Decimal(str(pickup.waste_category.rate_per_kg))
-                    except (TypeError, ValueError, decimal.InvalidOperation) as e:
+                    except (TypeError, ValueError, InvalidOperation) as e:
                         if is_ajax:
                             return JsonResponse({'success': False, 'error': 'Invalid weight value'}, status=400)
                         messages.error(request, 'Invalid weight value')
@@ -407,7 +451,6 @@ def admin_update_pickup_status(request, pickup_id):
                 if not hasattr(pickup, 'transaction'):
                     with transaction.atomic():
                         # Ensure amount is properly converted to Decimal
-                        from decimal import Decimal
                         amount = Decimal(str(pickup.actual_price)) if pickup.actual_price else \
                                  (Decimal(str(pickup.estimated_price)) if pickup.estimated_price else Decimal('0'))
                         
@@ -1010,6 +1053,186 @@ def customer_report_pdf(request):
     buffer.seek(0)
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     filename = f"kawadiwala_report_{request.user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    return response
+
+
+@login_required
+def download_pickup_receipt(request, pickup_id):
+    """Generate and download PDF receipt for a specific pickup"""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    from django.http import HttpResponse
+    from datetime import datetime
+    import io
+    
+    # Get the pickup request
+    pickup = get_object_or_404(PickupRequest, id=pickup_id)
+    
+    # Security check - only allow customer or admin to download receipt
+    if request.user.role == 'customer' and pickup.customer != request.user:
+        return redirect('dashboard')
+    elif request.user.role not in ['customer', 'admin']:
+        return redirect('dashboard')
+    
+    # Only allow receipt download for completed pickups
+    if pickup.status != 'completed':
+        messages.error(request, 'Receipt is only available for completed pickups.')
+        return redirect('dashboard')
+    
+    # Get related transaction if exists
+    transaction = None
+    try:
+        transaction = Transaction.objects.get(pickup_request=pickup)
+    except Transaction.DoesNotExist:
+        pass
+    
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4, rightMargin=36, leftMargin=36, topMargin=72, bottomMargin=36)
+    
+    # Container for PDF elements
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Header
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Heading1'],
+        fontSize=24,
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        textColor=colors.green
+    )
+    elements.append(Paragraph("ONLINE KAWADIWALA", header_style))
+    
+    # Receipt title
+    receipt_title_style = ParagraphStyle(
+        'ReceiptTitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        spaceAfter=20,
+        alignment=TA_CENTER,
+        textColor=colors.black
+    )
+    elements.append(Paragraph("PICKUP RECEIPT", receipt_title_style))
+    
+    # Receipt details
+    receipt_info = [
+        ['Receipt #:', f'RCP-{pickup.id:06d}'],
+        ['Date:', pickup.completed_at.strftime('%B %d, %Y') if pickup.completed_at else pickup.created_at.strftime('%B %d, %Y')],
+        ['Time:', pickup.completed_at.strftime('%I:%M %p') if pickup.completed_at else pickup.pickup_time.strftime('%I:%M %p')],
+    ]
+    
+    receipt_table = Table(receipt_info, colWidths=[2*inch, 4*inch])
+    receipt_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(receipt_table)
+    elements.append(Spacer(1, 20))
+    
+    # Customer Information
+    elements.append(Paragraph("CUSTOMER INFORMATION", styles['Heading3']))
+    customer_info = [
+        ['Name:', pickup.customer.get_full_name() or pickup.customer.username],
+        ['Phone:', pickup.customer.phone or 'N/A'],
+        ['Address:', pickup.address],
+    ]
+    
+    customer_table = Table(customer_info, colWidths=[1.5*inch, 4.5*inch])
+    customer_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+    ]))
+    elements.append(customer_table)
+    elements.append(Spacer(1, 20))
+    
+    # Pickup Details
+    elements.append(Paragraph("PICKUP DETAILS", styles['Heading3']))
+    pickup_details = [
+        ['Waste Category:', pickup.waste_category.name],
+        ['Estimated Weight:', f'{pickup.estimated_weight_kg} kg'],
+        ['Actual Weight:', f'{pickup.actual_weight_kg} kg' if pickup.actual_weight_kg else 'N/A'],
+        ['Rate per kg:', f'Rs. {pickup.waste_category.rate_per_kg}'],
+        ['Collector:', pickup.collector.get_full_name() or pickup.collector.username if pickup.collector else 'N/A'],
+    ]
+    
+    pickup_table = Table(pickup_details, colWidths=[2*inch, 4*inch])
+    pickup_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(pickup_table)
+    elements.append(Spacer(1, 20))
+    
+    # Payment Information
+    elements.append(Paragraph("PAYMENT INFORMATION", styles['Heading3']))
+    
+    estimated_price = pickup.estimated_price or (pickup.estimated_weight_kg * pickup.waste_category.rate_per_kg)
+    actual_price = pickup.actual_price or (pickup.actual_weight_kg * pickup.waste_category.rate_per_kg if pickup.actual_weight_kg else estimated_price)
+    
+    payment_data = [
+        ['Description', 'Amount'],
+        ['Estimated Amount', f'Rs. {estimated_price:.2f}'],
+        ['Final Amount', f'Rs. {actual_price:.2f}'],
+        ['Payment Status', 'Paid' if transaction and transaction.is_paid else 'Pending'],
+    ]
+    
+    payment_table = Table(payment_data, colWidths=[3*inch, 2*inch])
+    payment_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(payment_table)
+    elements.append(Spacer(1, 30))
+    
+    # Footer
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=10,
+        alignment=TA_CENTER,
+        textColor=colors.grey
+    )
+    elements.append(Paragraph("Thank you for choosing Online Kawadiwala!", footer_style))
+    elements.append(Paragraph("Together we're making a cleaner, greener environment.", footer_style))
+    elements.append(Spacer(1, 10))
+    elements.append(Paragraph(f"Generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", footer_style))
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get PDF data
+    pdf_data = buffer.getvalue()
+    buffer.close()
+    
+    # Create HTTP response
+    response = HttpResponse(pdf_data, content_type='application/pdf')
+    filename = f"receipt_pickup_{pickup.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     return response

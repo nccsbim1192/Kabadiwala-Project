@@ -293,7 +293,7 @@
                                         <td>
                                             <div class="btn-group btn-group-sm" role="group">
                                                 {% if pickup.status == 'pending' or pickup.status == 'assigned' %}
-                                                    <button class="btn btn-outline-danger btn-sm" onclick="cancelPickup({{ pickup.id }})">
+                                                    <button class="btn btn-outline-danger btn-sm" onclick="cancelPickup('{{ pickup.id }}')">
                                                         <i class="fas fa-times"></i>
                                                     </button>
                                                 {% endif %}
@@ -301,93 +301,13 @@
                                                     <i class="fas fa-eye"></i>
                                                 </button>
                                                 {% if pickup.status == 'completed' %}
-                                                    <button class="btn btn-outline-success btn-sm" onclick="downloadReceipt({{ pickup.id }})">
+                                                    <button class="btn btn-outline-success btn-sm" onclick="downloadReceipt('{{ pickup.id }}')">
                                                         <i class="fas fa-download"></i>
                                                     </button>
                                                 {% endif %}
                                             </div>
                                         </td>
                                     </tr>
-
-                                    <!-- Details Modal for each pickup -->
-                                    <div class="modal fade" id="detailsModal{{ pickup.id }}" tabindex="-1" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header bg-info text-white">
-                                                    <h5 class="modal-title">
-                                                        <i class="fas fa-info-circle me-2"></i>Pickup Details
-                                                    </h5>
-                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Request ID:</strong></div>
-                                                        <div class="col-sm-7">#{{ pickup.id }}</div>
-                                                    </div>
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Category:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.waste_category.name }}</div>
-                                                    </div>
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Estimated Weight:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.estimated_weight_kg }} kg</div>
-                                                    </div>
-                                                    {% if pickup.actual_weight_kg %}
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Actual Weight:</strong></div>
-                                                        <div class="col-sm-7 text-success">{{ pickup.actual_weight_kg }} kg</div>
-                                                    </div>
-                                                    {% endif %}
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Pickup Date:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.pickup_date|date:"l, F d, Y" }}</div>
-                                                    </div>
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Pickup Time:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.pickup_time|time:"H:i A" }}</div>
-                                                    </div>
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Address:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.address }}</div>
-                                                    </div>
-                                                    {% if pickup.special_instructions %}
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Instructions:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.special_instructions }}</div>
-                                                    </div>
-                                                    {% endif %}
-                                                    {% if pickup.collector %}
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Collector:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.collector.username }}</div>
-                                                    </div>
-                                                    {% endif %}
-                                                    <div class="row mb-2">
-                                                        <div class="col-sm-5"><strong>Status:</strong></div>
-                                                        <div class="col-sm-7">{{ pickup.get_status_display }}</div>
-                                                    </div>
-                                                    <div class="row">
-                                                        <div class="col-sm-5"><strong>Payment:</strong></div>
-                                                        <div class="col-sm-7 text-success fw-bold">
-                                                            {% if pickup.status == 'completed' and pickup.actual_weight_kg %}
-                                                                Rs. {{ pickup.actual_price|floatformat:2 }}
-                                                            {% else %}
-                                                                Rs. {{ pickup.estimated_price|floatformat:2 }} (estimated)
-                                                            {% endif %}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                                                    {% if pickup.status == 'completed' %}
-                                                        <button type="button" class="btn btn-success" onclick="downloadReceipt({{ pickup.id }})">
-                                                            <i class="fas fa-download me-1"></i>Download Receipt
-                                                        </button>
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                     {% endfor %}
                                 </tbody>
                             </table>
@@ -408,6 +328,98 @@
     </div>
 
 </div>
+
+<!-- Pickup Details Modals -->
+{% for pickup in recent_pickups %}
+<div class="modal fade" id="detailsModal{{ pickup.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-info text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>Pickup Details
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Request ID:</strong></div>
+                    <div class="col-sm-7">#{{ pickup.id }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Status:</strong></div>
+                    <div class="col-sm-7">
+                        <span class="badge 
+                            {% if pickup.status == 'pending' %}bg-warning
+                            {% elif pickup.status == 'assigned' %}bg-info
+                            {% elif pickup.status == 'in_progress' %}bg-primary
+                            {% elif pickup.status == 'completed' %}bg-success
+                            {% else %}bg-secondary
+                            {% endif %}">
+                            {{ pickup.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Waste Category:</strong></div>
+                    <div class="col-sm-7">{{ pickup.waste_category.name }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Estimated Weight:</strong></div>
+                    <div class="col-sm-7">{{ pickup.estimated_weight_kg }} kg</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Estimated Price:</strong></div>
+                    <div class="col-sm-7">Rs. {{ pickup.estimated_price|floatformat:2 }}</div>
+                </div>
+                {% if pickup.actual_weight_kg %}
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Actual Weight:</strong></div>
+                    <div class="col-sm-7">{{ pickup.actual_weight_kg }} kg</div>
+                </div>
+                {% endif %}
+                {% if pickup.actual_price %}
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Final Price:</strong></div>
+                    <div class="col-sm-7">Rs. {{ pickup.actual_price|floatformat:2 }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Pickup Date:</strong></div>
+                    <div class="col-sm-7">{{ pickup.pickup_date|date:"M d, Y" }}</div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Pickup Time:</strong></div>
+                    <div class="col-sm-7">{{ pickup.pickup_time|time:"H:i A" }}</div>
+                </div>
+                {% if pickup.collector %}
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Collector:</strong></div>
+                    <div class="col-sm-7">{{ pickup.collector.username }}</div>
+                </div>
+                {% endif %}
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Address:</strong></div>
+                    <div class="col-sm-7">{{ pickup.address }}</div>
+                </div>
+                {% if pickup.notes %}
+                <div class="row mb-2">
+                    <div class="col-sm-5"><strong>Notes:</strong></div>
+                    <div class="col-sm-7">{{ pickup.notes }}</div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                {% if pickup.status == 'completed' %}
+                    <button type="button" class="btn btn-success" onclick="downloadReceipt({{ pickup.id }})">
+                        <i class="fas fa-download me-1"></i>Download Receipt
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
 
 <!-- Impact Details Modal -->
 <div class="modal fade" id="impactModal" tabindex="-1" aria-hidden="true">
@@ -487,7 +499,21 @@ function cancelPickup(pickupId) {
 }
 
 function downloadReceipt(pickupId) {
-    showAlert('Receipt download feature will be available soon!', 'info');
+    // Show loading state
+    const button = event.target.closest('button');
+    const originalHTML = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    button.disabled = true;
+    
+    // Download the receipt
+    window.location.href = `/download-receipt/${pickupId}/`;
+    
+    // Reset button after a short delay
+    setTimeout(() => {
+        button.innerHTML = originalHTML;
+        button.disabled = false;
+        showAlert('Receipt download started!', 'success');
+    }, 2000);
 }
 
 function downloadReport() {

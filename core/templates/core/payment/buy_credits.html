@@ -1,0 +1,339 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Buy Credits - Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-coins text-warning me-2"></i>Buy Credits</h2>
+                <a href="{% url 'collector_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Balance Card -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-wallet me-2"></i>Current Balance</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h3 class="text-success mb-2">Rs.{{ credit_account.current_balance|floatformat:0 }}</h3>
+                    <p class="text-muted mb-0">Available Credits</p>
+                    {% if credit_account.is_low_balance %}
+                    <div class="alert alert-warning mt-2 mb-0">
+                        <small><i class="fas fa-exclamation-triangle me-1"></i>Low balance! Consider topping up.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>How Credits Work</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-shopping-cart text-primary me-2"></i>Purchase Credits</h6>
+                            <p class="small text-muted">Buy credits in advance with 10% platform commission pre-deducted.</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-money-bill-wave text-success me-2"></i>Pay Customers</h6>
+                            <p class="small text-muted">Use credits to pay customers instantly for their waste.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Credit Packages -->
+    <div class="row">
+        <div class="col-12">
+            <h4 class="mb-3">Choose a Credit Package</h4>
+        </div>
+        
+        {% for package in packages %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100 {% if package.is_popular %}border-primary{% endif %}">
+                {% if package.is_popular %}
+                <div class="card-header bg-primary text-white text-center">
+                    <small><i class="fas fa-star me-1"></i>MOST POPULAR</small>
+                </div>
+                {% endif %}
+                
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ package.name }}</h5>
+                    
+                    <div class="mb-3">
+                        <h3 class="text-primary">Rs.{{ package.purchase_amount|floatformat:0 }}</h3>
+                        <small class="text-muted">You Pay</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h4 class="text-success">Rs.{{ package.credit_amount|floatformat:0 }}</h4>
+                        <small class="text-muted">Credits You Get</small>
+                        {% if package.bonus_credits > 0 %}
+                        <div class="text-warning mt-1">
+                            <small><i class="fas fa-gift me-1"></i>+ Rs.{{ package.bonus_credits|floatformat:0 }} Bonus!</small>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <span class="badge bg-info">{{ package.savings_percentage|floatformat:1 }}% Commission</span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="text-start mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-check text-success me-2"></i>Instant credit loading<br>
+                            <i class="fas fa-check text-success me-2"></i>No transaction fees<br>
+                            <i class="fas fa-check text-success me-2"></i>Valid for 1 year<br>
+                            {% if package.bonus_credits > 0 %}
+                            <i class="fas fa-gift text-warning me-2"></i>Bonus credits included
+                            {% endif %}
+                        </small>
+                    </div>
+                </div>
+                
+                <div class="card-footer">
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#paymentModal{{ package.id }}">
+                        <i class="fas fa-shopping-cart me-2"></i>Buy Now
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <div class="alert alert-info text-center">
+                <h5>No Credit Packages Available</h5>
+                <p class="mb-0">Credit packages are currently being set up. Please check back later.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Payment Method Modals -->
+    {% for package in packages %}
+    <div class="modal fade" id="paymentModal{{ package.id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">
+                        <i class="fas fa-credit-card me-2"></i>Choose Payment Method
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h6>{{ package.name }}</h6>
+                        <p class="text-muted mb-0">
+                            Pay Rs.{{ package.purchase_amount|floatformat:0 }} → Get Rs.{{ package.credit_amount|floatformat:0 }} credits
+                            {% if package.bonus_credits > 0 %}
+                            + Rs.{{ package.bonus_credits|floatformat:0 }} bonus
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <form method="post" action="{% url 'initiate_credit_purchase' package.id %}">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <div class="card payment-option" onclick="selectPayment('khalti', '{{ package.id }}')">
+                                    <div class="card-body d-flex align-items-center">
+                                        <i class="fas fa-mobile-alt fa-2x text-primary me-3"></i>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Khalti</h6>
+                                            <small class="text-muted">Digital wallet payment</small>
+                                        </div>
+                                        <input type="radio" name="payment_method" value="khalti" class="form-check-input">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="card payment-option" onclick="selectPayment('esewa', '{{ package.id }}')">
+                                    <div class="card-body d-flex align-items-center">
+                                        <i class="fas fa-wallet fa-2x text-success me-3"></i>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">eSewa</h6>
+                                            <small class="text-muted">Digital wallet payment</small>
+                                        </div>
+                                        <input type="radio" name="payment_method" value="esewa" class="form-check-input">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <div class="card payment-option" onclick="selectPayment('bank_transfer', '{{ package.id }}')">
+                                    <div class="card-body d-flex align-items-center">
+                                        <i class="fas fa-university fa-2x text-info me-3"></i>
+                                        <div class="flex-grow-1">
+                                            <h6 class="mb-1">Bank Transfer</h6>
+                                            <small class="text-muted">Direct bank payment</small>
+                                        </div>
+                                        <input type="radio" name="payment_method" value="bank_transfer" class="form-check-input">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2 mt-3">
+                            <button type="submit" class="btn btn-warning" id="proceedBtn{{ package.id }}" disabled>
+                                <i class="fas fa-arrow-right me-2"></i>Proceed to Payment
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Usage Statistics -->
+    {% if credit_account.total_purchased > 0 %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Your Credit Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <h4 class="text-primary">Rs.{{ credit_account.total_purchased|floatformat:0 }}</h4>
+                            <small class="text-muted">Total Purchased</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-success">Rs.{{ credit_account.total_used|floatformat:0 }}</h4>
+                            <small class="text-muted">Total Used</small>
+                        </div>
+                        <div class="col-md-3">
+                            <h4 class="text-warning">Rs.{{ credit_account.current_balance|floatformat:0 }}</h4>
+                            <small class="text-muted">Current Balance</small>
+                        </div>
+                        <div class="col-md-3">
+                            {% if credit_account.total_purchased > 0 %}
+                                {% widthratio credit_account.total_used credit_account.total_purchased 100 as usage_percentage %}
+                                <h4 class="text-info">{{ usage_percentage|floatformat:1 }}%</h4>
+                            {% else %}
+                                <h4 class="text-info">0.0%</h4>
+                            {% endif %}
+                            <small class="text-muted">Usage Rate</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Payment Methods Info -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-credit-card me-2"></i>Accepted Payment Methods</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-mobile-alt fa-2x text-primary mb-2"></i>
+                                <h6>Khalti</h6>
+                                <small class="text-muted">Digital wallet payment</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-wallet fa-2x text-success mb-2"></i>
+                                <h6>eSewa</h6>
+                                <small class="text-muted">Digital wallet payment</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="p-3 border rounded">
+                                <i class="fas fa-university fa-2x text-info mb-2"></i>
+                                <h6>Bank Transfer</h6>
+                                <small class="text-muted">Direct bank payment</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<style>
+.payment-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+}
+
+.payment-option:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+}
+
+.payment-option.selected {
+    border-color: #28a745;
+    background-color: #f8fff9;
+    box-shadow: 0 2px 12px rgba(40,167,69,0.3);
+}
+</style>
+
+<script>
+function selectPayment(method, packageId) {
+    // Remove selected class from all payment options in this modal
+    const modal = document.getElementById('paymentModal' + packageId);
+    modal.querySelectorAll('.payment-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+    
+    // Add selected class to clicked option
+    event.currentTarget.classList.add('selected');
+    
+    // Check the corresponding radio button
+    const radio = event.currentTarget.querySelector('input[type="radio"]');
+    radio.checked = true;
+    
+    // Enable the proceed button
+    document.getElementById('proceedBtn' + packageId).disabled = false;
+}
+
+// Add some interactivity
+document.addEventListener('DOMContentLoaded', function() {
+    // Highlight popular package
+    const popularCards = document.querySelectorAll('.border-primary');
+    popularCards.forEach(card => {
+        card.style.boxShadow = '0 4px 20px rgba(0,123,255,0.3)';
+    });
+    
+    // Add hover effects
+    const cards = document.querySelectorAll('.card:not(.payment-option)');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.transform = 'translateY(-5px)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        card.addEventListener('mouseleave', function() {
+            this.style.transform = 'translateY(0)';
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,365 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Transaction Details - Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-receipt text-primary me-2"></i>Transaction Details</h2>
+                <div>
+                    <a href="{% url 'payment_history' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-1"></i>Back to History
+                    </a>
+                    <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-home me-1"></i>Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Overview Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>Transaction Overview
+                        <span class="badge bg-light text-dark ms-2">ID: #{{ transaction.id }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3">Transaction Information</h6>
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Transaction Date:</td>
+                                    <td>{{ transaction.transaction_date|date:"M d, Y h:i A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Amount:</td>
+                                    <td><span class="text-success fw-bold fs-5">Rs. {{ transaction.amount|floatformat:2 }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Collector Commission:</td>
+                                    <td><span class="text-info">Rs. {{ transaction.collector_commission|floatformat:2 }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Payment Method:</td>
+                                    <td>
+                                        {% if transaction.payment_method == 'cash' %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-money-bill me-1"></i>Cash
+                                            </span>
+                                        {% elif transaction.payment_method == 'esewa' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-mobile-alt me-1"></i>eSewa
+                                            </span>
+                                        {% elif transaction.payment_method == 'khalti' %}
+                                            <span class="badge bg-purple">
+                                                <i class="fas fa-mobile-alt me-1"></i>Khalti
+                                            </span>
+                                        {% elif transaction.payment_method == 'ime_pay' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-mobile-alt me-1"></i>IME Pay
+                                            </span>
+                                        {% elif transaction.payment_method == 'fonepay' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-mobile-alt me-1"></i>FonePay
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-dark">
+                                                {{ transaction.get_payment_method_display }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Payment Status:</td>
+                                    <td>
+                                        {% if transaction.payment_status == 'completed' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle me-1"></i>Completed
+                                            </span>
+                                        {% elif transaction.payment_status == 'pending' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        {% elif transaction.payment_status == 'processing' %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-spinner me-1"></i>Processing
+                                            </span>
+                                        {% elif transaction.payment_status == 'failed' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times-circle me-1"></i>Failed
+                                            </span>
+                                        {% elif transaction.payment_status == 'refunded' %}
+                                            <span class="badge bg-secondary">
+                                                <i class="fas fa-undo me-1"></i>Refunded
+                                            </span>
+                                        {% elif transaction.payment_status == 'cancelled' %}
+                                            <span class="badge bg-dark">
+                                                <i class="fas fa-ban me-1"></i>Cancelled
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">
+                                                {{ transaction.get_payment_status_display }}
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-3">Payment Timeline</h6>
+                            <table class="table table-borderless">
+                                {% if transaction.payment_initiated_at %}
+                                <tr>
+                                    <td class="fw-bold">Payment Initiated:</td>
+                                    <td>{{ transaction.payment_initiated_at|date:"M d, Y h:i A" }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if transaction.payment_completed_at %}
+                                <tr>
+                                    <td class="fw-bold">Payment Completed:</td>
+                                    <td>{{ transaction.payment_completed_at|date:"M d, Y h:i A" }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if transaction.gateway_transaction_id %}
+                                <tr>
+                                    <td class="fw-bold">Gateway Transaction ID:</td>
+                                    <td><code>{{ transaction.gateway_transaction_id }}</code></td>
+                                </tr>
+                                {% endif %}
+                                {% if transaction.payment_gateway %}
+                                <tr>
+                                    <td class="fw-bold">Payment Gateway:</td>
+                                    <td>{{ transaction.payment_gateway|title }}</td>
+                                </tr>
+                                {% endif %}
+                                {% if transaction.refund_amount %}
+                                <tr>
+                                    <td class="fw-bold">Refund Amount:</td>
+                                    <td><span class="text-warning">Rs. {{ transaction.refund_amount|floatformat:2 }}</span></td>
+                                </tr>
+                                {% endif %}
+                                {% if transaction.refund_reason %}
+                                <tr>
+                                    <td class="fw-bold">Refund Reason:</td>
+                                    <td>{{ transaction.refund_reason }}</td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pickup Request Details -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-truck me-2"></i>Pickup Request Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td class="fw-bold">Waste Category:</td>
+                                    <td>{{ pickup_request.waste_category.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Weight:</td>
+                                    <td><span class="fw-bold">{{ pickup_request.weight }} kg</span></td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Rate per kg:</td>
+                                    <td>Rs. {{ pickup_request.waste_category.rate_per_kg|floatformat:2 }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Request Date:</td>
+                                    <td>{{ pickup_request.request_date|date:"M d, Y h:i A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold">Status:</td>
+                                    <td>
+                                        {% if pickup_request.status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif pickup_request.status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif pickup_request.status == 'in_progress' %}
+                                            <span class="badge bg-info">In Progress</span>
+                                        {% elif pickup_request.status == 'cancelled' %}
+                                            <span class="badge bg-danger">Cancelled</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ pickup_request.get_status_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-muted mb-2">Pickup Address</h6>
+                            <p class="mb-2">
+                                <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                                {{ pickup_request.pickup_address }}
+                            </p>
+                            {% if pickup_request.special_instructions %}
+                            <h6 class="text-muted mb-2">Special Instructions</h6>
+                            <p class="text-muted">{{ pickup_request.special_instructions }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-user me-2"></i>Collector Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <i class="fas fa-user-circle fa-3x text-info"></i>
+                    </div>
+                    <table class="table table-borderless">
+                        <tr>
+                            <td class="fw-bold">Name:</td>
+                            <td>{{ transaction.collector.get_full_name|default:transaction.collector.username }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Phone:</td>
+                            <td>{{ transaction.collector.phone_number|default:"N/A" }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-bold">Email:</td>
+                            <td>{{ transaction.collector.email|default:"N/A" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gateway Logs (if available) -->
+    {% if gateway_logs %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-server me-2"></i>Payment Gateway Logs</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Timestamp</th>
+                                    <th>Action</th>
+                                    <th>Status</th>
+                                    <th>Response</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in gateway_logs %}
+                                <tr>
+                                    <td>{{ log.created_at|date:"M d, Y h:i:s A" }}</td>
+                                    <td>{{ log.action|default:"N/A" }}</td>
+                                    <td>
+                                        {% if log.status == 'success' %}
+                                            <span class="badge bg-success">Success</span>
+                                        {% elif log.status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ log.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if log.response %}
+                                            <button class="btn btn-sm btn-outline-info" type="button" data-bs-toggle="collapse" data-bs-target="#response-{{ log.id }}">
+                                                View Response
+                                            </button>
+                                            <div class="collapse mt-2" id="response-{{ log.id }}">
+                                                <pre class="bg-light p-2 rounded"><code>{{ log.response|pprint }}</code></pre>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No response data</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Gateway Response (if available) -->
+    {% if transaction.gateway_response %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-code me-2"></i>Gateway Response Data</h5>
+                </div>
+                <div class="card-body">
+                    <pre class="bg-light p-3 rounded"><code>{{ transaction.gateway_response|pprint }}</code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-body text-center">
+                    {% if transaction.payment_status == 'pending' and transaction.payment_method != 'cash' %}
+                        <a href="{% url 'initiate_payment' transaction.id %}" class="btn btn-success me-2">
+                            <i class="fas fa-credit-card me-1"></i>Complete Payment
+                        </a>
+                    {% endif %}
+                    
+                    {% if transaction.payment_status == 'completed' %}
+                        <button class="btn btn-outline-primary me-2" onclick="window.print()">
+                            <i class="fas fa-print me-1"></i>Print Receipt
+                        </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'payment_history' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-1"></i>View All Transactions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-purple {
+    background-color: #6f42c1 !important;
+}
+
+@media print {
+    .btn, .card-header, nav, footer {
+        display: none !important;
+    }
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+{% endblock %}

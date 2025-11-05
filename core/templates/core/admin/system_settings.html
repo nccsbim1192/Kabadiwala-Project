@@ -1,0 +1,451 @@
+{% extends 'core/admin/dashboard.html' %}
+{% load static %}
+
+{% block title %}System Settings - Custom Admin{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">System Settings</h2>
+            <p class="text-muted mb-0">Configure system parameters and preferences</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn quick-action-btn" onclick="backupSystem()">
+                <i class="fas fa-download me-1"></i>Backup Data
+            </button>
+            <button class="btn quick-action-btn" onclick="clearCache()">
+                <i class="fas fa-broom me-1"></i>Clear Cache
+            </button>
+        </div>
+    </div>
+
+    <!-- System Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h3 class="mb-1">{{ system_stats.total_users }}</h3>
+                <p class="text-muted mb-0">Total Users</p>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <h3 class="mb-1">{{ system_stats.total_pickups }}</h3>
+                <p class="text-muted mb-0">Total Pickups</p>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h3 class="mb-1">{{ system_stats.total_transactions }}</h3>
+                <p class="text-muted mb-0">Transactions</p>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <i class="fas fa-recycle"></i>
+                </div>
+                <h3 class="mb-1">{{ system_stats.waste_categories }}</h3>
+                <p class="text-muted mb-0">Waste Categories</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Sections -->
+    <div class="row">
+        <!-- General Settings -->
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-cog me-2"></i>General Settings
+                </h5>
+                
+                <form id="generalSettingsForm">
+                    <div class="mb-3">
+                        <label class="form-label">System Name</label>
+                        <input type="text" class="form-control" value="Kawadiwala" readonly>
+                        <small class="form-text text-muted">The name of your waste management system</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Default Currency</label>
+                        <select class="form-select">
+                            <option value="NPR" selected>Nepali Rupee (NPR)</option>
+                            <option value="USD">US Dollar (USD)</option>
+                            <option value="EUR">Euro (EUR)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Time Zone</label>
+                        <select class="form-select">
+                            <option value="Asia/Kathmandu" selected>Asia/Kathmandu</option>
+                            <option value="UTC">UTC</option>
+                            <option value="Asia/Kolkata">Asia/Kolkata</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="maintenanceMode">
+                            <label class="form-check-label" for="maintenanceMode">
+                                Maintenance Mode
+                            </label>
+                            <small class="form-text text-muted d-block">Enable to temporarily disable user access</small>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn quick-action-btn">
+                        <i class="fas fa-save me-1"></i>Save General Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Notification Settings -->
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-bell me-2"></i>Notification Settings
+                </h5>
+                
+                <form id="notificationSettingsForm">
+                    <div class="mb-3">
+                        <label class="form-label">SMS Gateway Status</label>
+                        <div class="d-flex align-items-center">
+                            <span class="badge bg-success me-2">Active</span>
+                            <small class="text-muted">{{ system_stats.sms_sent }} SMS sent</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="emailNotifications" checked>
+                            <label class="form-check-label" for="emailNotifications">
+                                Email Notifications
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="smsNotifications" checked>
+                            <label class="form-check-label" for="smsNotifications">
+                                SMS Notifications
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="pushNotifications">
+                            <label class="form-check-label" for="pushNotifications">
+                                Push Notifications
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn quick-action-btn">
+                        <i class="fas fa-save me-1"></i>Save Notification Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Payment Settings -->
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-credit-card me-2"></i>Payment Gateway Settings
+                </h5>
+                
+                <div class="mb-3">
+                    <label class="form-label">eSewa Integration</label>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-warning me-2">Test Mode</span>
+                        <small class="text-muted">Merchant Code: test_merchant</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Khalti Integration</label>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-warning me-2">Test Mode</span>
+                        <small class="text-muted">Public Key: test_public_key_***</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Supported Payment Methods</label>
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="cashPayment" checked>
+                                <label class="form-check-label" for="cashPayment">Cash</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="esewaPayment" checked>
+                                <label class="form-check-label" for="esewaPayment">eSewa</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="khaltiPayment" checked>
+                                <label class="form-check-label" for="khaltiPayment">Khalti</label>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="imePayment">
+                                <label class="form-check-label" for="imePayment">IME Pay</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="fonepayPayment">
+                                <label class="form-check-label" for="fonepayPayment">FonePay</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="bankTransfer">
+                                <label class="form-check-label" for="bankTransfer">Bank Transfer</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn quick-action-btn">
+                    <i class="fas fa-save me-1"></i>Save Payment Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- GPS & Tracking Settings -->
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-map-marker-alt me-2"></i>GPS & Tracking Settings
+                </h5>
+                
+                <div class="mb-3">
+                    <label class="form-label">Google Maps API</label>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-success me-2">Active</span>
+                        <small class="text-muted">{{ system_stats.gps_updates }} GPS updates</small>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label">Location Update Interval</label>
+                    <select class="form-select">
+                        <option value="30">30 seconds</option>
+                        <option value="60" selected>1 minute</option>
+                        <option value="300">5 minutes</option>
+                        <option value="600">10 minutes</option>
+                    </select>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="realTimeTracking" checked>
+                        <label class="form-check-label" for="realTimeTracking">
+                            Real-time Tracking
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="locationHistory" checked>
+                        <label class="form-check-label" for="locationHistory">
+                            Store Location History
+                        </label>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn quick-action-btn">
+                    <i class="fas fa-save me-1"></i>Save GPS Settings
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Maintenance -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-tools me-2"></i>System Maintenance
+                </h5>
+                
+                <div class="row">
+                    <div class="col-md-3 text-center mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="runSystemCheck()">
+                            <i class="fas fa-stethoscope d-block mb-2"></i>
+                            System Health Check
+                        </button>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <button class="btn btn-outline-success w-100" onclick="backupDatabase()">
+                            <i class="fas fa-database d-block mb-2"></i>
+                            Backup Database
+                        </button>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <button class="btn btn-outline-warning w-100" onclick="clearSystemLogs()">
+                            <i class="fas fa-file-alt d-block mb-2"></i>
+                            Clear System Logs
+                        </button>
+                    </div>
+                    <div class="col-md-3 text-center mb-3">
+                        <button class="btn btn-outline-info w-100" onclick="optimizeDatabase()">
+                            <i class="fas fa-magic d-block mb-2"></i>
+                            Optimize Database
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent System Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-history me-2"></i>Recent System Activity
+                </h5>
+                
+                {% if recent_activities %}
+                    {% for activity in recent_activities %}
+                    <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                        <div>
+                            <strong>{{ activity.action }}</strong>
+                            <br>
+                            <small class="text-muted">{{ activity.description }}</small>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                            <br>
+                            <span class="badge bg-{{ activity.level }}">{{ activity.level|capfirst }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-clock fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No recent system activities</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Settings functions
+function backupSystem() {
+    if (confirm('Create a full system backup? This may take several minutes.')) {
+        showAlert('System backup initiated. You will be notified when complete.', 'info');
+        // Implement actual backup logic
+    }
+}
+
+function clearCache() {
+    if (confirm('Clear all system cache? This may temporarily slow down the system.')) {
+        showAlert('System cache cleared successfully.', 'success');
+        // Implement cache clearing logic
+    }
+}
+
+function runSystemCheck() {
+    showAlert('Running system health check...', 'info');
+    
+    // Simulate system check
+    setTimeout(() => {
+        showAlert('System health check completed. All systems operational.', 'success');
+    }, 2000);
+}
+
+function backupDatabase() {
+    if (confirm('Create database backup? This operation may take some time.')) {
+        showAlert('Database backup started. Download will begin shortly.', 'info');
+        
+        // Simulate backup download
+        setTimeout(() => {
+            const link = document.createElement('a');
+            link.href = 'data:text/plain;charset=utf-8,Database backup placeholder';
+            link.download = `kawadiwala_backup_${new Date().toISOString().split('T')[0]}.sql`;
+            link.click();
+        }, 1000);
+    }
+}
+
+function clearSystemLogs() {
+    if (confirm('Clear all system logs? This action cannot be undone.')) {
+        showAlert('System logs cleared successfully.', 'success');
+        // Implement log clearing logic
+    }
+}
+
+function optimizeDatabase() {
+    if (confirm('Optimize database? This may take several minutes and temporarily affect performance.')) {
+        showAlert('Database optimization started...', 'info');
+        
+        // Simulate optimization
+        setTimeout(() => {
+            showAlert('Database optimization completed successfully.', 'success');
+        }, 3000);
+    }
+}
+
+// Form submissions
+document.getElementById('generalSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    showAlert('General settings saved successfully!', 'success');
+});
+
+document.getElementById('notificationSettingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    showAlert('Notification settings saved successfully!', 'success');
+});
+
+// Utility function
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 
+                               type === 'warning' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

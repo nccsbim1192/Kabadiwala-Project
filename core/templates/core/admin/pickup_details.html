@@ -1,0 +1,595 @@
+{% extends 'core/admin/dashboard.html' %}
+{% load static %}
+
+{% block title %}Pickup Details #{{ pickup.id }} - Custom Admin{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">Pickup Details #{{ pickup.id }}</h2>
+            <p class="text-muted mb-0">Comprehensive view of pickup request and related information</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'admin_pickup_management' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Pickups
+            </a>
+            {% if pickup.status != 'completed' and pickup.status != 'cancelled' %}
+            <button class="btn btn-success" onclick="quickUpdateStatus('{{ pickup.id }}', 'completed')">
+                <i class="fas fa-check me-1"></i>Mark Complete
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status and Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">Current Status: 
+                            <span class="badge 
+                                {% if pickup.status == 'completed' %}bg-success
+                                {% elif pickup.status == 'pending' %}bg-warning
+                                {% elif pickup.status == 'assigned' %}bg-info
+                                {% elif pickup.status == 'in_progress' %}bg-primary
+                                {% elif pickup.status == 'cancelled' %}bg-danger
+                                {% else %}bg-secondary{% endif %}">
+                                {{ pickup.get_status_display }}
+                            </span>
+                        </h5>
+                        <p class="text-muted mb-0">Created: {{ pickup.created_at|date:"M d, Y h:i A" }}</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        {% if pickup.status != 'completed' and pickup.status != 'cancelled' %}
+                        <select class="form-select" onchange="updatePickupStatus('{{ pickup.id }}', this.value)" style="width: auto;">
+                            <option value="">Change Status...</option>
+                            {% if pickup.status != 'pending' %}
+                            <option value="pending">Pending</option>
+                            {% endif %}
+                            {% if pickup.status != 'assigned' %}
+                            <option value="assigned">Assigned to Collector</option>
+                            {% endif %}
+                            {% if pickup.status != 'in_progress' %}
+                            <option value="in_progress">In Progress</option>
+                            {% endif %}
+                            {% if pickup.status != 'completed' %}
+                            <option value="completed">Completed</option>
+                            {% endif %}
+                            {% if pickup.status != 'cancelled' %}
+                            <option value="cancelled">Cancelled</option>
+                            {% endif %}
+                        </select>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Details Row -->
+    <div class="row mb-4">
+        <!-- Pickup Information -->
+        <div class="col-lg-8">
+            <div class="stat-card h-100">
+                <h5 class="mb-3"><i class="fas fa-truck text-success me-2"></i>Pickup Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold text-muted">Waste Category:</td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ pickup.waste_category.name }}</span>
+                                    <br><small class="text-muted">Rate: Rs. {{ pickup.waste_category.rate_per_kg }}/kg</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-muted">Estimated Weight:</td>
+                                <td><strong>{{ pickup.estimated_weight_kg }} kg</strong></td>
+                            </tr>
+                            {% if pickup.actual_weight_kg %}
+                            <tr>
+                                <td class="fw-bold text-muted">Actual Weight:</td>
+                                <td>
+                                    <strong class="text-success">{{ pickup.actual_weight_kg }} kg</strong>
+                                    {% if pickup.actual_weight_kg != pickup.estimated_weight_kg %}
+                                        <small class="text-muted">
+                                            (Difference from estimate)
+                                        </small>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td class="fw-bold text-muted">Estimated Price:</td>
+                                <td><strong>Rs. {{ pickup.estimated_price|floatformat:2 }}</strong></td>
+                            </tr>
+                            {% if pickup.actual_price %}
+                            <tr>
+                                <td class="fw-bold text-muted">Actual Price:</td>
+                                <td><strong class="text-success">Rs. {{ pickup.actual_price|floatformat:2 }}</strong></td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold text-muted">Pickup Date:</td>
+                                <td>{{ pickup.pickup_date|date:"M d, Y" }}</td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-muted">Pickup Time:</td>
+                                <td>{{ pickup.pickup_time }}</td>
+                            </tr>
+                            {% if pickup.completed_at %}
+                            <tr>
+                                <td class="fw-bold text-muted">Completed At:</td>
+                                <td>{{ pickup.completed_at|date:"M d, Y h:i A" }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                        
+                        <h6 class="text-muted mb-2 mt-3">Pickup Address</h6>
+                        <p class="mb-2">
+                            <i class="fas fa-map-marker-alt text-danger me-1"></i>
+                            {{ pickup.address }}
+                        </p>
+                        
+                        {% if pickup.special_instructions %}
+                        <h6 class="text-muted mb-2 mt-3">Special Instructions</h6>
+                        <p class="text-muted">{{ pickup.special_instructions }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="col-lg-4">
+            <div class="stat-card h-100">
+                <h5 class="mb-3"><i class="fas fa-chart-bar text-primary me-2"></i>Quick Stats</h5>
+                
+                <!-- Weight Comparison -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Weight Comparison</h6>
+                    {% if pickup.actual_weight_kg and pickup.estimated_weight_kg %}
+                        <div class="row text-center mb-2">
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <small class="text-muted d-block">Estimated</small>
+                                    <strong class="text-primary">{{ pickup.estimated_weight_kg }} kg</strong>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <small class="text-muted d-block">Actual</small>
+                                    <strong class="text-success">{{ pickup.actual_weight_kg }} kg</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <small class="text-muted">Accuracy</small>
+                            <small class="fw-bold">
+                                {% widthratio pickup.actual_weight_kg pickup.estimated_weight_kg 100 as accuracy_percent %}
+                                {% if accuracy_percent > 110 %}
+                                    <span class="text-warning">{{ accuracy_percent }}% (Over estimate)</span>
+                                {% elif accuracy_percent < 90 %}
+                                    <span class="text-info">{{ accuracy_percent }}% (Under estimate)</span>
+                                {% else %}
+                                    <span class="text-success">{{ accuracy_percent }}% (Good match)</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            {% widthratio pickup.actual_weight_kg pickup.estimated_weight_kg 100 as accuracy_percent %}
+                            <div class="progress-bar {% if accuracy_percent > 120 %}bg-warning{% elif accuracy_percent < 80 %}bg-info{% else %}bg-success{% endif %}" 
+                                 style="width: {% if accuracy_percent > 100 %}100{% else %}{{ accuracy_percent }}{% endif %}%"></div>
+                        </div>
+                        <small class="text-muted">{{ accuracy_percent }}% of estimated weight</small>
+                    {% else %}
+                        <div class="text-center py-2">
+                            <small class="text-muted">
+                                {% if not pickup.actual_weight_kg %}
+                                    Actual weight not recorded yet
+                                {% else %}
+                                    Estimated: {{ pickup.estimated_weight_kg }} kg
+                                {% endif %}
+                            </small>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Timeline -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-2">Timeline</h6>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Days Since Request</small>
+                        <small class="fw-bold">{{ pickup.created_at|timesince|truncatewords:2 }}</small>
+                    </div>
+                    {% if pickup.completed_at %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <small class="text-muted">Completion Time</small>
+                        <small class="fw-bold text-success">{{ pickup.completed_at|timesince|truncatewords:2 }} ago</small>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Environmental Impact -->
+                {% if environmental_impact %}
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Environmental Impact</h6>
+                    <div class="row text-center">
+                        <div class="col-6 mb-2">
+                            <div class="border rounded p-2 bg-light">
+                                <i class="fas fa-leaf text-success mb-1"></i>
+                                <div class="fw-bold text-success">{{ environmental_impact.co2_saved|floatformat:1 }}</div>
+                                <small class="text-muted">kg CO₂ Saved</small>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="border rounded p-2 bg-light">
+                                <i class="fas fa-tree text-success mb-1"></i>
+                                <div class="fw-bold text-success">{{ environmental_impact.trees_saved|floatformat:1 }}</div>
+                                <small class="text-muted">Trees Saved</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="mb-3">
+                    <h6 class="text-muted mb-2">Environmental Impact</h6>
+                    <div class="text-center py-2">
+                        <small class="text-muted">Impact data not available</small>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer and Collector Information -->
+    <div class="row mb-4">
+        <!-- Customer Information -->
+        <div class="col-md-6">
+            <div class="stat-card h-100">
+                <h5 class="mb-3"><i class="fas fa-user text-info me-2"></i>Customer Information</h5>
+                <div class="d-flex align-items-center mb-3">
+                    <div class="me-3">
+                        <i class="fas fa-user-circle fa-3x text-info"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">{{ pickup.customer.get_full_name|default:pickup.customer.username }}</h6>
+                        <p class="text-muted mb-0">{{ pickup.customer.email }}</p>
+                        {% if pickup.customer.phone_number %}
+                        <p class="text-muted mb-0">{{ pickup.customer.phone_number }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h6 class="text-primary">{{ customer_pickup_history|length|add:1 }}</h6>
+                        <small class="text-muted">Total Pickups</small>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-success">
+                            {% if environmental_impact %}
+                                {{ environmental_impact.total_waste_recycled|floatformat:1 }}
+                            {% else %}
+                                0
+                            {% endif %} kg
+                        </h6>
+                        <small class="text-muted">Waste Recycled</small>
+                    </div>
+                    <div class="col-4">
+                        <h6 class="text-warning">
+                            {% if environmental_impact %}
+                                {{ environmental_impact.co2_saved|floatformat:1 }}
+                            {% else %}
+                                0
+                            {% endif %} kg
+                        </h6>
+                        <small class="text-muted">CO2 Saved</small>
+                    </div>
+                </div>
+
+                {% if customer_pickup_history %}
+                <h6 class="mt-3 mb-2">Recent Pickups</h6>
+                <div class="list-group list-group-flush">
+                    {% for history_pickup in customer_pickup_history %}
+                    <div class="list-group-item px-0 py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <small class="fw-bold">{{ history_pickup.waste_category.name }}</small>
+                                <br><small class="text-muted">{{ history_pickup.created_at|date:"M d, Y" }}</small>
+                            </div>
+                            <div class="text-end">
+                                <small class="fw-bold">{{ history_pickup.actual_weight_kg|default:history_pickup.estimated_weight_kg }} kg</small>
+                                <br><span class="badge badge-sm 
+                                    {% if history_pickup.status == 'completed' %}bg-success
+                                    {% elif history_pickup.status == 'pending' %}bg-warning
+                                    {% else %}bg-secondary{% endif %}">
+                                    {{ history_pickup.get_status_display }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Collector Information -->
+        <div class="col-md-6">
+            <div class="stat-card h-100">
+                <h5 class="mb-3"><i class="fas fa-user-tie text-warning me-2"></i>Collector Information</h5>
+                
+                {% if pickup.collector %}
+                <div class="d-flex align-items-center mb-3">
+                    <div class="me-3">
+                        <i class="fas fa-user-circle fa-3x text-warning"></i>
+                    </div>
+                    <div>
+                        <h6 class="mb-1">{{ pickup.collector.get_full_name|default:pickup.collector.username }}</h6>
+                        <p class="text-muted mb-0">{{ pickup.collector.email }}</p>
+                        {% if pickup.collector.phone_number %}
+                        <p class="text-muted mb-0">{{ pickup.collector.phone_number }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if collector_stats %}
+                <div class="row text-center mb-3">
+                    <div class="col-3">
+                        <h6 class="text-primary">{{ collector_stats.total_pickups }}</h6>
+                        <small class="text-muted">Total</small>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-success">{{ collector_stats.completed_pickups }}</h6>
+                        <small class="text-muted">Completed</small>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-info">{{ collector_stats.completion_rate|floatformat:1 }}%</h6>
+                        <small class="text-muted">Success Rate</small>
+                    </div>
+                    <div class="col-3">
+                        <h6 class="text-warning">{{ collector_stats.avg_rating|floatformat:1 }}</h6>
+                        <small class="text-muted">Rating</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <small class="text-muted">Performance</small>
+                        <small class="fw-bold">{{ collector_stats.completion_rate|floatformat:1 }}%</small>
+                    </div>
+                    <div class="progress" style="height: 6px;">
+                        <div class="progress-bar bg-success" style="width: {{ collector_stats.completion_rate }}%"></div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">Total Waste Collected</small>
+                    <small class="fw-bold">{{ collector_stats.total_waste_collected|floatformat:1 }} kg</small>
+                </div>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+                    <h6 class="text-muted">No Collector Assigned</h6>
+                    <p class="text-muted mb-3">This pickup request is still pending assignment.</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="assignCollector('{{ pickup.id }}')">
+                        <i class="fas fa-user-plus me-1"></i>Assign Collector
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Transaction Information -->
+    {% if transaction %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-3"><i class="fas fa-credit-card text-success me-2"></i>Transaction Information</h5>
+                <div class="row">
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold text-muted">Transaction ID:</td>
+                                <td><code>#{{ transaction.id }}</code></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-muted">Amount:</td>
+                                <td><strong class="text-success">Rs. {{ transaction.amount|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-muted">Collector Commission:</td>
+                                <td><strong class="text-info">Rs. {{ transaction.collector_commission|floatformat:2 }}</strong></td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-muted">Payment Method:</td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ transaction.get_payment_method_display }}</span>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="table table-borderless">
+                            <tr>
+                                <td class="fw-bold text-muted">Payment Status:</td>
+                                <td>
+                                    <span class="badge 
+                                        {% if transaction.payment_status == 'completed' %}bg-success
+                                        {% elif transaction.payment_status == 'pending' %}bg-warning
+                                        {% elif transaction.payment_status == 'failed' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ transaction.get_payment_status_display }}
+                                    </span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="fw-bold text-muted">Transaction Date:</td>
+                                <td>{{ transaction.transaction_date|date:"M d, Y h:i A" }}</td>
+                            </tr>
+                            {% if transaction.payment_completed_at %}
+                            <tr>
+                                <td class="fw-bold text-muted">Payment Completed:</td>
+                                <td>{{ transaction.payment_completed_at|date:"M d, Y h:i A" }}</td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td class="fw-bold text-muted">Is Paid:</td>
+                                <td>
+                                    {% if transaction.is_paid %}
+                                        <span class="badge bg-success">Yes</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">No</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="d-flex gap-2 mt-3">
+                    <a href="{% url 'admin_transaction_details' transaction.id %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-eye me-1"></i>View Transaction Details
+                    </a>
+                    {% if not transaction.is_paid %}
+                    <button class="btn btn-outline-success btn-sm" onclick="markTransactionPaid('{{ transaction.id }}')">
+                        <i class="fas fa-check me-1"></i>Mark as Paid
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+function updatePickupStatus(pickupId, newStatus) {
+    if (!newStatus) return;
+    
+    let bodyData = `status=${newStatus}`;
+    
+    // If marking as completed, ask for actual weight
+    if (newStatus === 'completed') {
+        const actualWeight = prompt('Please enter the actual weight (kg):');
+        if (!actualWeight || isNaN(actualWeight) || parseFloat(actualWeight) <= 0) {
+            showAlert('Please enter a valid weight greater than 0', 'error');
+            return;
+        }
+        bodyData += `&actual_weight_kg=${actualWeight}`;
+    }
+    
+    if (confirm(`Are you sure you want to change the status to "${newStatus}"?`)) {
+        fetch(`/admin-manage/update-pickup/${pickupId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: bodyData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('An error occurred: ' + error.message, 'error');
+        });
+    }
+}
+
+function quickUpdateStatus(pickupId, status) {
+    updatePickupStatus(pickupId, status);
+}
+
+function assignCollector(pickupId) {
+    // This would open a modal or redirect to assignment page
+    alert('Collector assignment feature coming soon!');
+}
+
+function markTransactionPaid(transactionId) {
+    if (confirm('Mark this transaction as paid?')) {
+        fetch(`/admin-manage/approve-transaction/${transactionId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: 'action=approve'
+        })
+        .then(response => {
+            if (response.ok) {
+                showAlert('Transaction marked as paid successfully!', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('Failed to update transaction status', 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('An error occurred: ' + error.message, 'error');
+        });
+    }
+}
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

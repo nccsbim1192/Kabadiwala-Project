@@ -1,0 +1,279 @@
+{% extends 'core/admin/dashboard.html' %}
+{% load static %}
+
+{% block title %}Edit Pickup #{{ pickup.id }} - Custom Admin{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">Edit Pickup #{{ pickup.id }}</h2>
+            <p class="text-muted mb-0">Modify pickup request details and status</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{% url 'admin_pickup_details' pickup.id %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Back to Details
+            </a>
+            <a href="{% url 'admin_pickup_management' %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-1"></i>All Pickups
+            </a>
+        </div>
+    </div>
+
+    <!-- Current Status -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="text-muted mb-1">Current Status</h6>
+                        <span class="badge 
+                            {% if pickup.status == 'completed' %}bg-success
+                            {% elif pickup.status == 'pending' %}bg-warning
+                            {% elif pickup.status == 'assigned' %}bg-info
+                            {% elif pickup.status == 'in_progress' %}bg-primary
+                            {% elif pickup.status == 'cancelled' %}bg-danger
+                            {% else %}bg-secondary{% endif %} fs-6">
+                            {{ pickup.get_status_display }}
+                        </span>
+                    </div>
+                    <div class="text-end">
+                        <small class="text-muted">Created: {{ pickup.created_at|date:"M d, Y h:i A" }}</small>
+                        {% if pickup.completed_at %}
+                        <br><small class="text-muted">Completed: {{ pickup.completed_at|date:"M d, Y h:i A" }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-4"><i class="fas fa-edit text-primary me-2"></i>Edit Pickup Details</h5>
+                
+                <form method="post" id="pickupEditForm">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <!-- Customer and Collector -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.customer.id_for_label }}" class="form-label fw-bold">Customer *</label>
+                            {{ form.customer }}
+                            {% if form.customer.errors %}
+                                <div class="text-danger small mt-1">{{ form.customer.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.collector.id_for_label }}" class="form-label fw-bold">Collector</label>
+                            {{ form.collector }}
+                            {% if form.collector.errors %}
+                                <div class="text-danger small mt-1">{{ form.collector.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Waste Category and Status -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.waste_category.id_for_label }}" class="form-label fw-bold">Waste Category *</label>
+                            {{ form.waste_category }}
+                            {% if form.waste_category.errors %}
+                                <div class="text-danger small mt-1">{{ form.waste_category.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.status.id_for_label }}" class="form-label fw-bold">Status *</label>
+                            {{ form.status }}
+                            {% if form.status.errors %}
+                                <div class="text-danger small mt-1">{{ form.status.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Weights -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.estimated_weight_kg.id_for_label }}" class="form-label fw-bold">Estimated Weight (kg) *</label>
+                            {{ form.estimated_weight_kg }}
+                            {% if form.estimated_weight_kg.errors %}
+                                <div class="text-danger small mt-1">{{ form.estimated_weight_kg.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.actual_weight_kg.id_for_label }}" class="form-label fw-bold">Actual Weight (kg)</label>
+                            {{ form.actual_weight_kg }}
+                            {% if form.actual_weight_kg.errors %}
+                                <div class="text-danger small mt-1">{{ form.actual_weight_kg.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text">Required when status is 'Completed'</div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <!-- Date and Time -->
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.pickup_date.id_for_label }}" class="form-label fw-bold">Pickup Date *</label>
+                            {{ form.pickup_date }}
+                            {% if form.pickup_date.errors %}
+                                <div class="text-danger small mt-1">{{ form.pickup_date.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.pickup_time.id_for_label }}" class="form-label fw-bold">Pickup Time *</label>
+                            {{ form.pickup_time }}
+                            {% if form.pickup_time.errors %}
+                                <div class="text-danger small mt-1">{{ form.pickup_time.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label fw-bold">Pickup Address *</label>
+                        {{ form.address }}
+                        {% if form.address.errors %}
+                            <div class="text-danger small mt-1">{{ form.address.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Special Instructions -->
+                    <div class="mb-4">
+                        <label for="{{ form.special_instructions.id_for_label }}" class="form-label fw-bold">Special Instructions</label>
+                        {{ form.special_instructions }}
+                        {% if form.special_instructions.errors %}
+                            <div class="text-danger small mt-1">{{ form.special_instructions.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Price Information (Read-only) -->
+                    {% if pickup.estimated_price or pickup.actual_price %}
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Price Information</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <strong>Estimated Price:</strong> Rs. {{ pickup.estimated_price|floatformat:2 }}
+                                    </div>
+                                    {% if pickup.actual_price %}
+                                    <div class="col-md-6">
+                                        <strong>Actual Price:</strong> Rs. {{ pickup.actual_price|floatformat:2 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted mt-2 d-block">Prices are automatically calculated based on weight and category rate.</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <button type="submit" class="btn btn-success me-2">
+                                <i class="fas fa-save me-1"></i>Save Changes
+                            </button>
+                            <a href="{% url 'admin_pickup_details' pickup.id %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Cancel
+                            </a>
+                        </div>
+                        <div>
+                            <small class="text-muted">* Required fields</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Form validation and enhancement
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('pickupEditForm');
+    const statusField = document.getElementById('{{ form.status.id_for_label }}');
+    const actualWeightField = document.getElementById('{{ form.actual_weight_kg.id_for_label }}');
+    
+    // Status change handler
+    if (statusField) {
+        statusField.addEventListener('change', function() {
+            const selectedStatus = this.value;
+            
+            // If status is completed, make actual weight required
+            if (selectedStatus === 'completed') {
+                actualWeightField.setAttribute('required', 'required');
+                actualWeightField.closest('.mb-3').querySelector('.form-text').innerHTML = 
+                    '<strong class="text-danger">Required for completed status</strong>';
+                
+                // Focus on actual weight if empty
+                if (!actualWeightField.value) {
+                    actualWeightField.focus();
+                }
+            } else {
+                actualWeightField.removeAttribute('required');
+                actualWeightField.closest('.mb-3').querySelector('.form-text').innerHTML = 
+                    'Required when status is \'Completed\'';
+            }
+        });
+        
+        // Trigger on page load
+        statusField.dispatchEvent(new Event('change'));
+    }
+    
+    // Form submission validation
+    form.addEventListener('submit', function(e) {
+        const status = statusField.value;
+        const actualWeight = actualWeightField.value;
+        
+        if (status === 'completed' && (!actualWeight || parseFloat(actualWeight) <= 0)) {
+            e.preventDefault();
+            showAlert('Actual weight is required when marking pickup as completed.', 'error');
+            actualWeightField.focus();
+            return false;
+        }
+        
+        // Confirm submission
+        if (!confirm('Are you sure you want to save these changes?')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+
+// Utility function for alerts
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

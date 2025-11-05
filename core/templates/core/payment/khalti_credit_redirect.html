@@ -1,0 +1,140 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<style>
+    body { 
+        background-color: #f8f9fa;
+    }
+    .khalti-container { 
+        max-width: 95%; 
+        padding: 20px; 
+        margin: 0 auto;
+    }
+    .khalti-card { 
+        border-radius: 12px; 
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+        margin: 30px auto;
+        max-width: fit-content;
+        overflow: visible;
+        background: white;
+    }
+    .khalti-header { 
+        background: linear-gradient(135deg, #5C2D91 0%, #2A1A5E 100%); 
+        color: white; 
+        padding: 20px 25px;
+    }
+    .card-body {
+        padding: 30px;
+    }
+    @media (max-width: 768px) {
+        .khalti-container {
+            padding: 10px;
+            max-width: 100%;
+        }
+        .khalti-card {
+            margin: 15px 0;
+            border-radius: 8px;
+        }
+        .card-body {
+            padding: 20px 15px;
+        }
+        .btn { 
+            width: 100%; 
+            margin-bottom: 10px; 
+        }
+    }
+</style>
+{% endblock %}
+
+{% block title %}Pay with Khalti - Credit Purchase{% endblock %}
+
+{% block content %}
+<div class="container khalti-container">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8">
+            <div class="khalti-card">
+                <div class="khalti-header text-center">
+                    <h4 class="mb-0">Complete Your Credit Purchase with Khalti</h4>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <img src="{% static 'images/khalti-logo.png' %}" alt="Khalti" class="img-fluid" style="max-height: 60px;">
+                    </div>
+                    
+                    <div class="alert alert-success p-3">
+                        <h5>{{ package.name }}</h5>
+                        <p class="mb-2">
+                            <strong>Pay: Rs.{{ credit_purchase.amount_paid|floatformat:0 }}</strong><br>
+                            <strong>Get: Rs.{{ credit_purchase.credits_received|floatformat:0 }} Credits</strong>
+                            {% if credit_purchase.bonus_credits > 0 %}
+                            <br><span class="text-success">+ Rs.{{ credit_purchase.bonus_credits|floatformat:0 }} Bonus Credits!</span>
+                            {% endif %}
+                        </p>
+                        <small class="text-muted">Credit Purchase #{{ credit_purchase.id }}</small>
+                    </div>
+                    
+                    <p class="lead">You will be redirected to Khalti's secure payment page to complete your credit purchase.</p>
+                    
+                    <div class="d-grid gap-2 col-12 col-md-8 mx-auto mt-4">
+                        <a href="{{ payment_url }}" class="btn btn-primary btn-lg" target="_blank">
+                            <i class="fas fa-credit-card me-2"></i> Pay with Khalti
+                        </a>
+                        <a href="{% url 'buy_credits' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i> Back to Credit Packages
+                        </a>
+                    </div>
+                    
+                    <div class="mt-4 text-muted">
+                        <p class="small">
+                            <i class="fas fa-lock me-2"></i> Your payment is secure and encrypted.
+                        </p>
+                        <p class="small">
+                            <i class="fas fa-info-circle me-2"></i> Credits will be added to your account immediately after successful payment.
+                        </p>
+                        <p class="small">
+                            Don't have Khalti? 
+                            <a href="https://khalti.com/mobile/" target="_blank" class="text-primary">
+                                Download Khalti App <i class="fas fa-external-link-alt ms-1"></i>
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const paymentWindow = window.open('{{ payment_url }}', '_blank');
+        
+        if (paymentWindow) {
+            paymentWindow.focus();
+            
+            // Check if payment window is closed
+            const checkClosed = setInterval(function() {
+                if (paymentWindow.closed) {
+                    clearInterval(checkClosed);
+                    // Redirect to collector dashboard after payment window closes
+                    setTimeout(function() {
+                        window.location.href = "{% url 'collector_dashboard' %}";
+                    }, 2000);
+                }
+            }, 1000);
+        } else {
+            const container = document.querySelector('.khalti-container');
+            const message = document.createElement('div');
+            message.className = 'alert alert-warning mt-4';
+            message.innerHTML = `
+                <h5>Popup was blocked</h5>
+                <p>Please enable popups for this site and click the button below to proceed to payment.</p>
+                <a href="{{ payment_url }}" target="_blank" class="btn btn-primary">
+                    Proceed to Khalti Payment
+                </a>
+            `;
+            container.appendChild(message);
+        }
+    });
+</script>
+{% endblock %}

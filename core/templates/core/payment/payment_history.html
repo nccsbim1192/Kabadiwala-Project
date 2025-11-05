@@ -1,0 +1,236 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Payment History - Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-history text-primary me-2"></i>Payment History</h2>
+                <a href="{% url 'customer_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if transactions %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-receipt me-2"></i>Transaction History</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Pickup Request</th>
+                                        <th>Collector</th>
+                                        <th>Amount</th>
+                                        <th>Payment Method</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in transactions %}
+                                    <tr>
+                                        <td>
+                                            <small class="text-muted">
+                                                {{ transaction.transaction_date|date:"M d, Y" }}<br>
+                                                {{ transaction.transaction_date|time:"h:i A" }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <strong>{{ transaction.pickup_request.waste_category.name }}</strong><br>
+                                                <small class="text-muted">{{ transaction.pickup_request.weight }} kg</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <i class="fas fa-user-circle me-1"></i>{{ transaction.collector.get_full_name|default:transaction.collector.username }}<br>
+                                                <small class="text-muted">{{ transaction.collector.phone_number|default:"N/A" }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <strong class="text-success">Rs. {{ transaction.amount|floatformat:2 }}</strong>
+                                        </td>
+                                        <td>
+                                            {% if transaction.payment_method == 'cash' %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-money-bill me-1"></i>Cash
+                                                </span>
+                                            {% elif transaction.payment_method == 'esewa' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-mobile-alt me-1"></i>eSewa
+                                                </span>
+                                            {% elif transaction.payment_method == 'khalti' %}
+                                                <span class="badge bg-purple">
+                                                    <i class="fas fa-mobile-alt me-1"></i>Khalti
+                                                </span>
+                                            {% elif transaction.payment_method == 'ime_pay' %}
+                                                <span class="badge bg-info">
+                                                    <i class="fas fa-mobile-alt me-1"></i>IME Pay
+                                                </span>
+                                            {% elif transaction.payment_method == 'fonepay' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-mobile-alt me-1"></i>FonePay
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-dark">
+                                                    {{ transaction.get_payment_method_display }}
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if transaction.payment_status == 'completed' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check-circle me-1"></i>Completed
+                                                </span>
+                                            {% elif transaction.payment_status == 'pending' %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-clock me-1"></i>Pending
+                                                </span>
+                                            {% elif transaction.payment_status == 'processing' %}
+                                                <span class="badge bg-info">
+                                                    <i class="fas fa-spinner me-1"></i>Processing
+                                                </span>
+                                            {% elif transaction.payment_status == 'failed' %}
+                                                <span class="badge bg-danger">
+                                                    <i class="fas fa-times-circle me-1"></i>Failed
+                                                </span>
+                                            {% elif transaction.payment_status == 'refunded' %}
+                                                <span class="badge bg-secondary">
+                                                    <i class="fas fa-undo me-1"></i>Refunded
+                                                </span>
+                                            {% elif transaction.payment_status == 'cancelled' %}
+                                                <span class="badge bg-dark">
+                                                    <i class="fas fa-ban me-1"></i>Cancelled
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark">
+                                                    {{ transaction.get_payment_status_display }}
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{% url 'transaction_details' transaction.id %}" 
+                                                   class="btn btn-sm btn-outline-primary" 
+                                                   title="View Details">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if transaction.payment_status == 'pending' and transaction.payment_method != 'cash' %}
+                                                <a href="{% url 'initiate_payment' transaction.id %}" 
+                                                   class="btn btn-sm btn-outline-success" 
+                                                   title="Complete Payment">
+                                                    <i class="fas fa-credit-card"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card border-success">
+                    <div class="card-body text-center">
+                        <h5 class="text-success">
+                            {% with completed_transactions=transactions|length %}
+                                {{ completed_transactions }}
+                            {% endwith %}
+                        </h5>
+                        <p class="text-muted mb-0">Total Transactions</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-primary">
+                    <div class="card-body text-center">
+                        <h5 class="text-primary">
+                            Rs. {% with total_amount=0 %}
+                                {% for transaction in transactions %}
+                                    {% if transaction.payment_status == 'completed' %}
+                                        {% widthratio transaction.amount 1 1 as amount %}
+                                        {{ total_amount|add:amount }}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endwith %}
+                        </h5>
+                        <p class="text-muted mb-0">Total Paid</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h5 class="text-warning">
+                            {% with pending_count=0 %}
+                                {% for transaction in transactions %}
+                                    {% if transaction.payment_status == 'pending' %}
+                                        {{ pending_count|add:1 }}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endwith %}
+                        </h5>
+                        <p class="text-muted mb-0">Pending Payments</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h5 class="text-info">
+                            {% with total_weight=0 %}
+                                {% for transaction in transactions %}
+                                    {% widthratio transaction.pickup_request.weight 1 1 as weight %}
+                                    {{ total_weight|add:weight }}
+                                {% endfor %}
+                            {% endwith %} kg
+                        </h5>
+                        <p class="text-muted mb-0">Total Waste Collected</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    {% else %}
+        <!-- Empty State -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-receipt fa-4x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Payment History</h4>
+                        <p class="text-muted mb-4">You haven't made any transactions yet.</p>
+                        <a href="{% url 'request_pickup' %}" class="btn btn-success">
+                            <i class="fas fa-plus me-2"></i>Request Your First Pickup
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.bg-purple {
+    background-color: #6f42c1 !important;
+}
+</style>
+{% endblock %}

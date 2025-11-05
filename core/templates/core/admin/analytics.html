@@ -1,0 +1,322 @@
+{% extends 'core/admin/dashboard.html' %}
+{% load static %}
+
+{% block title %}Analytics Dashboard - Custom Admin{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">Analytics Dashboard</h2>
+            <p class="text-muted mb-0">Comprehensive system analytics and insights</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn quick-action-btn" onclick="refreshAnalytics()">
+                <i class="fas fa-sync-alt me-1"></i>Refresh Data
+            </button>
+            <button class="btn quick-action-btn" onclick="exportAnalytics()">
+                <i class="fas fa-download me-1"></i>Export Report
+            </button>
+        </div>
+    </div>
+
+    <!-- Revenue Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h3 class="mb-1">Rs {{ revenue_data.total_revenue|floatformat:0 }}</h3>
+                <p class="text-muted mb-2">Total Revenue</p>
+                <small class="text-success">
+                    <i class="fas fa-arrow-up me-1"></i>All time earnings
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                    <i class="fas fa-calendar-month"></i>
+                </div>
+                <h3 class="mb-1">Rs {{ revenue_data.monthly_revenue|floatformat:0 }}</h3>
+                <p class="text-muted mb-2">Monthly Revenue</p>
+                <small class="text-info">
+                    <i class="fas fa-calendar me-1"></i>This month
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3 class="mb-1">Rs {{ revenue_data.avg_transaction|floatformat:0 }}</h3>
+                <p class="text-muted mb-2">Avg Transaction</p>
+                <small class="text-warning">
+                    <i class="fas fa-calculator me-1"></i>Per pickup
+                </small>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <h3 class="mb-1">{{ pickup_analytics.completion_rate|floatformat:1 }}%</h3>
+                <p class="text-muted mb-2">Completion Rate</p>
+                <small class="text-danger">
+                    <i class="fas fa-check-circle me-1"></i>Success rate
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Growth Analytics -->
+    <div class="row mb-4">
+        <div class="col-lg-8 mb-4">
+            <div class="chart-container">
+                <h5 class="mb-3">User Growth Trends</h5>
+                <canvas id="userGrowthChart" height="100"></canvas>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">User Statistics</h5>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Total Users</span>
+                        <strong>{{ user_growth.total_users }}</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Monthly Growth</span>
+                        <strong class="text-success">+{{ user_growth.monthly_growth }}</strong>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between">
+                        <span>Weekly Growth</span>
+                        <strong class="text-info">+{{ user_growth.weekly_growth }}</strong>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between">
+                        <span>Retention Rate</span>
+                        <strong>{{ user_growth.customer_retention|floatformat:1 }}%</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Popular Categories and Payment Methods -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">Popular Waste Categories</h5>
+                {% if pickup_analytics.popular_categories %}
+                    {% for category in pickup_analytics.popular_categories %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ category.name }}</strong>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary">{{ category.count }} pickups</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-chart-bar fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No category data available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="stat-card">
+                <h5 class="mb-3">Payment Method Usage</h5>
+                {% if payment_methods %}
+                    {% for method in payment_methods %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ method.payment_method|capfirst }}</strong>
+                        </div>
+                        <div>
+                            <span class="badge bg-success">{{ method.count }} transactions</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-credit-card fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No payment data available</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Environmental Impact Analytics -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-3">Environmental Impact</h5>
+                <div class="row">
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto mb-3" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                            <i class="fas fa-weight-hanging"></i>
+                        </div>
+                        <h4>{{ env_impact.total_weight_recycled|floatformat:1 }}kg</h4>
+                        <p class="text-muted">Total Recycled</p>
+                        <small class="text-success">+{{ env_impact.monthly_weight|floatformat:1 }}kg this month</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto mb-3" style="background: linear-gradient(135deg, #198754, #20c997);">
+                            <i class="fas fa-tree"></i>
+                        </div>
+                        <h4>{{ env_impact.trees_saved|floatformat:1 }}</h4>
+                        <p class="text-muted">Trees Saved</p>
+                        <small class="text-success">Equivalent impact</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto mb-3" style="background: linear-gradient(135deg, #0dcaf0, #6f42c1);">
+                            <i class="fas fa-cloud"></i>
+                        </div>
+                        <h4>{{ env_impact.co2_reduced|floatformat:1 }}kg</h4>
+                        <p class="text-muted">CO₂ Reduced</p>
+                        <small class="text-info">Carbon footprint</small>
+                    </div>
+                    <div class="col-md-3 text-center">
+                        <div class="stat-icon mx-auto mb-3" style="background: linear-gradient(135deg, #0d6efd, #6610f2);">
+                            <i class="fas fa-tint"></i>
+                        </div>
+                        <h4>{{ env_impact.water_saved|floatformat:1 }}L</h4>
+                        <p class="text-muted">Water Saved</p>
+                        <small class="text-primary">Conservation impact</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Performance -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <h5 class="mb-3">System Performance Metrics</h5>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-success">{{ system_performance.active_collectors }}</h4>
+                            <p class="text-muted mb-0">Active Collectors</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-info">{{ system_performance.sms_delivery_rate|floatformat:1 }}%</h4>
+                            <p class="text-muted mb-0">SMS Delivery Rate</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-warning">{{ system_performance.payment_success_rate|floatformat:1 }}%</h4>
+                            <p class="text-muted mb-0">Payment Success Rate</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-primary">{{ system_performance.avg_response_time|floatformat:2 }}s</h4>
+                            <p class="text-muted mb-0">Avg Response Time</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Initialize charts
+document.addEventListener('DOMContentLoaded', function() {
+    // User Growth Chart - Using real data
+    const userGrowthCtx = document.getElementById('userGrowthChart').getContext('2d');
+    const monthlyLabels = JSON.parse('{{ user_growth.monthly_labels|escapejs }}');
+    const monthlyValues = JSON.parse('{{ user_growth.monthly_values|escapejs }}');
+    
+    new Chart(userGrowthCtx, {
+        type: 'line',
+        data: {
+            labels: monthlyLabels,
+            datasets: [{
+                label: 'New Users',
+                data: monthlyValues,
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                }
+            }
+        }
+    });
+});
+
+// Analytics functions
+function refreshAnalytics() {
+    location.reload();
+}
+
+function exportAnalytics() {
+    // Create a comprehensive analytics report
+    const reportData = {
+        revenue: JSON.parse('{{ revenue_data|escapejs }}'),
+        users: JSON.parse('{{ user_growth|escapejs }}'),
+        environmental: JSON.parse('{{ env_impact|escapejs }}'),
+        performance: JSON.parse('{{ system_performance|escapejs }}')
+    };
+    
+    // For now, just download as JSON
+    const dataStr = JSON.stringify(reportData, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'kawadiwala_analytics_report.json';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

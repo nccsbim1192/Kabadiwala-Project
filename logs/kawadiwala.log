@@ -1,0 +1,54 @@
+No phone number for user sarthak
+Using Khalti key: test_secret_key_...
+Initiating Khalti payment for credit_purchase 1
+Response status code: 401
+Response headers: {'Date': 'Wed, 05 Nov 2025 09:31:38 GMT', 'Content-Type': 'application/json', 'Content-Length': '45', 'Connection': 'keep-alive', 'WWW-Authenticate': 'Key', 'Allow': 'POST, OPTIONS', 'Vary': 'Accept-Language, Cookie, Origin', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!FHCrFmu9wdZYPjSdi8GHrcsPaIwS0Z3TKc555f99QCxG9xr+LHno+IjLGaxqXWCNOTSecnkdka8F5Q==; path=/; Httponly; Secure'}
+Response content: {"detail":"Invalid token.","status_code":401}
+Khalti API request failed: 401 Client Error: Unauthorized for url: https://a.khalti.com/api/v2/epayment/initiate/
+Status code: 401
+Response text: {"detail":"Invalid token.","status_code":401}
+Khalti payment initiation failed: {'detail': 'Invalid token.', 'status_code': 401}
+Using Khalti key: test_secret_key_...
+Initiating Khalti payment for credit_purchase 2
+Response status code: 401
+Response headers: {'Date': 'Wed, 05 Nov 2025 09:31:45 GMT', 'Content-Type': 'application/json', 'Content-Length': '45', 'Connection': 'keep-alive', 'WWW-Authenticate': 'Key', 'Allow': 'POST, OPTIONS', 'Vary': 'Accept-Language, Cookie, Origin', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!9R/uxjYgKYJQybOdi8GHrcsPaIwS0Z7UMQxVlnjPt6sP41z9bEMtJWZvzbbzH46yAWL0jg91aRbKNg==; path=/; Httponly; Secure'}
+Response content: {"detail":"Invalid token.","status_code":401}
+Khalti API request failed: 401 Client Error: Unauthorized for url: https://a.khalti.com/api/v2/epayment/initiate/
+Status code: 401
+Response text: {"detail":"Invalid token.","status_code":401}
+Khalti payment initiation failed: {'detail': 'Invalid token.', 'status_code': 401}
+Using Khalti key: 0e7e4c9dba5547f6...
+Initiating Khalti payment for credit_purchase 3
+Response status code: 200
+Response headers: {'Date': 'Wed, 05 Nov 2025 09:33:20 GMT', 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Vary': 'Accept-Encoding, Accept-Language, Cookie, Origin', 'Allow': 'POST, OPTIONS', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Content-Encoding': 'gzip', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!00GAyAx/yC6gZqedi8GHrcsPaIwS0X+LUAFLgOM+BXt7ujnYvVWHPu6r9r5L4dSv4b3cGuNbvykBDA==; path=/; Httponly; Secure'}
+Response content: {"pidx":"6t23qKdSV8szFpZ9ek9LVC","payment_url":"https://test-pay.khalti.com/?pidx=6t23qKdSV8szFpZ9ek9LVC","expires_at":"2025-11-05T15:48:20.770474+05:45","expires_in":1800}
+Khalti payment initiated successfully for credit_purchase 3
+Using Khalti key: 0e7e4c9dba5547f6...
+Initiating Khalti payment for credit_purchase 4
+Response status code: 200
+Response headers: {'Date': 'Wed, 05 Nov 2025 09:34:50 GMT', 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Vary': 'Accept-Encoding, Accept-Language, Cookie, Origin', 'Allow': 'POST, OPTIONS', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Content-Encoding': 'gzip', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!0lSL6/KtalmF7Bmdi8GHrcsPaIwS0fx48X6kZCiCtXEMBTHTQS3/U9RBX6eVB/QXFiL+1QKUHLEo1w==; path=/; Httponly; Secure'}
+Response content: {"pidx":"oei8xUekVy8s7oJFpNXzXB","payment_url":"https://test-pay.khalti.com/?pidx=oei8xUekVy8s7oJFpNXzXB","expires_at":"2025-11-05T15:49:50.188604+05:45","expires_in":1800}
+Khalti payment initiated successfully for credit_purchase 4
+Verifying Khalti payment with token: oei8xUekVy8s7oJFpNXzXB
+Khalti payment verification failed: {'pidx': 'oei8xUekVy8s7oJFpNXzXB', 'total_amount': 100000, 'status': 'User canceled', 'transaction_id': None, 'fee': 0, 'refunded': False, 'error_key': 'khalti_error'}
+Using Khalti key: 0e7e4c9dba5547f6...
+Initiating Khalti payment for credit_purchase 5
+Response status code: 200
+Response headers: {'Date': 'Wed, 05 Nov 2025 09:37:29 GMT', 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Vary': 'Accept-Encoding, Accept-Language, Cookie, Origin', 'Allow': 'POST, OPTIONS', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Content-Encoding': 'gzip', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!XRs70sRJ3emfLBydi8GHrcsPaIwS0T8X41A/Mwz4/f7QwQibPHQh9DNqGZq8hFYnJl9Lz6lRJCLEaQ==; path=/; Httponly; Secure'}
+Response content: {"pidx":"f85HDYJeGwBnBmfm28n3GS","payment_url":"https://test-pay.khalti.com/?pidx=f85HDYJeGwBnBmfm28n3GS","expires_at":"2025-11-05T15:52:29.404867+05:45","expires_in":1800}
+Khalti payment initiated successfully for credit_purchase 5
+Verifying Khalti payment with token: f85HDYJeGwBnBmfm28n3GS
+Khalti payment verification response: {'pidx': 'f85HDYJeGwBnBmfm28n3GS', 'total_amount': 100000, 'status': 'Completed', 'transaction_id': 'Ev5AfYjsuMR52kJCSYzdMJ', 'fee': 3000, 'refunded': False}
+SMS (DEBUG): To 987654321: Credit purchase successful! Rs.900.00 credits added to your Kawadiwala account.
+Using Khalti key: 0e7e4c9dba5547f6...
+Initiating Khalti payment for credit_purchase 6
+Response status code: 200
+Response headers: {'Date': 'Wed, 05 Nov 2025 09:44:17 GMT', 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Vary': 'Accept-Encoding, Accept-Language, Cookie, Origin', 'Allow': 'POST, OPTIONS', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Content-Encoding': 'gzip', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!3qoLwHbphgZerl+di8GHrcsPaIwS0eXiQBeDIZ+qYWNEmMJAwG2V7gobdG6eHKQjNWZdXmsBzAeJnQ==; path=/; Httponly; Secure'}
+Response content: {"pidx":"EaNmjPXJym3q6ZW4PYfPUU","payment_url":"https://test-pay.khalti.com/?pidx=EaNmjPXJym3q6ZW4PYfPUU","expires_at":"2025-11-05T15:59:17.878605+05:45","expires_in":1800}
+Khalti payment initiated successfully for credit_purchase 6
+Using Khalti key: 0e7e4c9dba5547f6...
+Initiating Khalti payment for credit_purchase 7
+Response status code: 200
+Response headers: {'Date': 'Wed, 05 Nov 2025 14:22:46 GMT', 'Content-Type': 'application/json', 'Transfer-Encoding': 'chunked', 'Connection': 'keep-alive', 'Vary': 'Accept-Encoding, Accept-Language, Cookie, Origin', 'Allow': 'POST, OPTIONS', 'Content-Language': 'en-us', 'X-Frame-Options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'x-xss-protection': '1; mode=block', 'Content-Encoding': 'gzip', 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload', 'Set-Cookie': 'sessioncookie=!yQLeLcv9TqQ76tGdi8GHrcsPaIwS0adOaKb1n33wV3z5pglmw9BWNbBGV6sIbGIXzKoQegxvbhEZZA==; path=/; Httponly; Secure'}
+Response content: {"pidx":"ARapbPZFF3WSC4eLRbxFHF","payment_url":"https://test-pay.khalti.com/?pidx=ARapbPZFF3WSC4eLRbxFHF","expires_at":"2025-11-05T20:37:46.588224+05:45","expires_in":1800}
+Khalti payment initiated successfully for credit_purchase 7

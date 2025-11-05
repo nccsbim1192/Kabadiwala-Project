@@ -1,0 +1,136 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Payment - Kawadiwala{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4><i class="fas fa-credit-card me-2"></i>Payment for Pickup #{{ transaction.pickup_request.id }}</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Pickup Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5>Pickup Details</h5>
+                            <p><strong>Waste Category:</strong> {{ transaction.pickup_request.waste_category.name }}</p>
+                            <p><strong>Weight:</strong> {{ transaction.pickup_request.actual_weight_kg }}kg</p>
+                            <p><strong>Date:</strong> {{ transaction.pickup_request.pickup_date }}</p>
+                            <p><strong>Collector:</strong> {{ transaction.pickup_request.collector.username }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Payment Summary</h5>
+                            <p><strong>Amount:</strong> Rs. {{ transaction.amount }}</p>
+                            <p><strong>Collector Commission:</strong> Rs. {{ transaction.collector_commission }}</p>
+                            <p><strong>Your Payment:</strong> Rs. {{ transaction.amount|floatformat:2 }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Payment Method Selection -->
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <h5>Select Payment Method</h5>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <div class="card payment-method" data-method="esewa">
+                                        <div class="card-body text-center">
+                                            <img src="{% static 'core/images/esewa-logo.png' %}" alt="eSewa" class="mb-2" style="height: 40px;">
+                                            <h6>eSewa</h6>
+                                            <input type="radio" name="payment_method" value="esewa" class="form-check-input">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card payment-method" data-method="khalti">
+                                        <div class="card-body text-center">
+                                            <img src="{% static 'core/images/khalti-logo.png' %}" alt="Khalti" class="mb-2" style="height: 40px;">
+                                            <h6>Khalti</h6>
+                                            <input type="radio" name="payment_method" value="khalti" class="form-check-input">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card payment-method" data-method="ime_pay">
+                                        <div class="card-body text-center">
+                                            <img src="{% static 'core/images/imepay-logo.png' %}" alt="IME Pay" class="mb-2" style="height: 40px;">
+                                            <h6>IME Pay</h6>
+                                            <input type="radio" name="payment_method" value="ime_pay" class="form-check-input">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <div class="card payment-method" data-method="fonepay">
+                                        <div class="card-body text-center">
+                                            <img src="{% static 'core/images/fonepay-logo.png' %}" alt="FonePay" class="mb-2" style="height: 40px;">
+                                            <h6>FonePay</h6>
+                                            <input type="radio" name="payment_method" value="fonepay" class="form-check-input">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success btn-lg" id="paymentBtn" disabled>
+                                <i class="fas fa-lock me-2"></i>Proceed to Payment
+                            </button>
+                            <a href="{% url 'customer_dashboard' %}" class="btn btn-secondary btn-lg ms-2">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.payment-method {
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 2px solid #e9ecef;
+}
+
+.payment-method:hover {
+    border-color: #28a745;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.payment-method.selected {
+    border-color: #28a745;
+    background-color: #f8fff9;
+}
+
+.payment-method input[type="radio"] {
+    display: none;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const paymentMethods = document.querySelectorAll('.payment-method');
+    const paymentBtn = document.getElementById('paymentBtn');
+    
+    paymentMethods.forEach(method => {
+        method.addEventListener('click', function() {
+            // Remove selected class from all methods
+            paymentMethods.forEach(m => m.classList.remove('selected'));
+            
+            // Add selected class to clicked method
+            this.classList.add('selected');
+            
+            // Check the radio button
+            const radio = this.querySelector('input[type="radio"]');
+            radio.checked = true;
+            
+            // Enable payment button
+            paymentBtn.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}

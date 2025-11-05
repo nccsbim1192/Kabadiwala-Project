@@ -1,0 +1,425 @@
+{% extends 'core/admin/dashboard.html' %}
+{% load static %}
+
+{% block title %}Pickup Management - Custom Admin{% endblock %}
+
+{% block content %}
+<div class="admin-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="text-dark mb-1">Pickup Management</h2>
+            <p class="text-muted mb-0">Manage all pickup requests and their status</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn quick-action-btn" onclick="exportPickups()">
+                <i class="fas fa-download me-1"></i>Export Pickups
+            </button>
+            <button class="btn quick-action-btn" onclick="refreshPickups()">
+                <i class="fas fa-sync-alt me-1"></i>Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Pickup Statistics -->
+    <div class="row mb-4">
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #20c997);">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <h4 class="mb-1">{{ pickup_stats.total }}</h4>
+                <p class="text-muted mb-0">Total</p>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #ffc107, #fd7e14);">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h4 class="mb-1">{{ pickup_stats.pending }}</h4>
+                <p class="text-muted mb-0">Pending</p>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #17a2b8, #6f42c1);">
+                    <i class="fas fa-user-check"></i>
+                </div>
+                <h4 class="mb-1">{{ pickup_stats.assigned }}</h4>
+                <p class="text-muted mb-0">Assigned</p>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #007bff, #6610f2);">
+                    <i class="fas fa-spinner"></i>
+                </div>
+                <h4 class="mb-1">{{ pickup_stats.in_progress }}</h4>
+                <p class="text-muted mb-0">In Progress</p>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #28a745, #198754);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h4 class="mb-1">{{ pickup_stats.completed }}</h4>
+                <p class="text-muted mb-0">Completed</p>
+            </div>
+        </div>
+        <div class="col-lg-2 col-md-4 mb-3">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #dc3545, #c82333);">
+                    <i class="fas fa-times-circle"></i>
+                </div>
+                <h4 class="mb-1">{{ pickup_stats.cancelled }}</h4>
+                <p class="text-muted mb-0">Cancelled</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Search -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stat-card">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Status Filter</label>
+                        <select name="status" class="form-select">
+                            <option value="all" {% if current_filters.status == 'all' %}selected{% endif %}>All Status</option>
+                            {% for status_code, status_display in status_choices %}
+                                <option value="{{ status_code }}" {% if current_filters.status == status_code %}selected{% endif %}>
+                                    {{ status_display }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Collector Filter</label>
+                        <select name="collector" class="form-select">
+                            <option value="all" {% if current_filters.collector == 'all' %}selected{% endif %}>All Collectors</option>
+                            <option value="unassigned" {% if current_filters.collector == 'unassigned' %}selected{% endif %}>Unassigned</option>
+                            {% for collector in collectors %}
+                                <option value="{{ collector.id }}" {% if current_filters.collector == collector.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ collector.get_full_name|default:collector.username }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Date Range</label>
+                        <select name="date_range" class="form-select">
+                            <option value="all" {% if current_filters.date_range == 'all' %}selected{% endif %}>All Time</option>
+                            <option value="today" {% if current_filters.date_range == 'today' %}selected{% endif %}>Today</option>
+                            <option value="week" {% if current_filters.date_range == 'week' %}selected{% endif %}>This Week</option>
+                            <option value="month" {% if current_filters.date_range == 'month' %}selected{% endif %}>This Month</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Search</label>
+                        <div class="input-group">
+                            <input type="text" name="search" class="form-control" placeholder="Search..." value="{{ current_filters.search }}">
+                            <button type="submit" class="btn quick-action-btn">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pickups Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="stat-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">Pickup Requests ({{ page_obj.paginator.count }} total)</h5>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-danger" onclick="bulkAction('delete')" id="bulkDeleteBtn" style="display: none;">
+                            <i class="fas fa-trash me-1"></i>Delete Selected
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="bulkAction('cancel')" id="bulkCancelBtn" style="display: none;">
+                            <i class="fas fa-times me-1"></i>Cancel Selected
+                        </button>
+                        <button class="btn btn-sm btn-outline-success" onclick="bulkAction('mark_completed')" id="bulkCompleteBtn" style="display: none;">
+                            <i class="fas fa-check me-1"></i>Complete Selected
+                        </button>
+                    </div>
+                </div>
+
+                {% if page_obj %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>
+                                    <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                </th>
+                                <th>ID</th>
+                                <th>Date</th>
+                                <th>Customer</th>
+                                <th>Collector</th>
+                                <th>Category</th>
+                                <th>Weight</th>
+                                <th>Price</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pickup in page_obj %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="pickup_ids" value="{{ pickup.id }}" class="pickup-checkbox" onchange="updateBulkButtons()">
+                                </td>
+                                <td>
+                                    <strong>#{{ pickup.id }}</strong>
+                                </td>
+                                <td>
+                                    <small>{{ pickup.pickup_date|date:"M d, Y" }}</small>
+                                    <br>
+                                    <small class="text-muted">{{ pickup.pickup_time }}</small>
+                                </td>
+                                <td>
+                                    <strong>{{ pickup.customer.get_full_name|default:pickup.customer.username }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ pickup.customer.email|truncatechars:25 }}</small>
+                                </td>
+                                <td>
+                                    {% if pickup.collector %}
+                                        <span class="badge bg-info">{{ pickup.collector.get_full_name|default:pickup.collector.username }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Unassigned</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">{{ pickup.waste_category.name }}</span>
+                                </td>
+                                <td>
+                                    {% if pickup.actual_weight_kg %}
+                                        <strong>{{ pickup.actual_weight_kg }}kg</strong>
+                                        <br><small class="text-muted">Est: {{ pickup.estimated_weight_kg }}kg</small>
+                                    {% else %}
+                                        <span class="text-muted">{{ pickup.estimated_weight_kg }}kg (est)</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if pickup.actual_price %}
+                                        <strong>Rs {{ pickup.actual_price }}</strong>
+                                        <br><small class="text-muted">Est: Rs {{ pickup.estimated_price }}</small>
+                                    {% else %}
+                                        <span class="text-muted">Rs {{ pickup.estimated_price }} (est)</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge 
+                                        {% if pickup.status == 'completed' %}bg-success
+                                        {% elif pickup.status == 'pending' %}bg-warning
+                                        {% elif pickup.status == 'assigned' %}bg-info
+                                        {% elif pickup.status == 'in_progress' %}bg-primary
+                                        {% elif pickup.status == 'cancelled' %}bg-danger
+                                        {% else %}bg-secondary{% endif %}">
+                                        {{ pickup.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editPickup({{ pickup.id }})" title="Edit">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="viewPickupDetails({{ pickup.id }})" title="View Details">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        {% if pickup.status != 'completed' and pickup.status != 'cancelled' %}
+                                        <button class="btn btn-outline-success" onclick="quickComplete({{ pickup.id }})" title="Quick Complete">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if page_obj.has_other_pages %}
+                <nav aria-label="Pickup pagination">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_filters.status != 'all' %}&status={{ current_filters.status }}{% endif %}{% if current_filters.collector != 'all' %}&collector={{ current_filters.collector }}{% endif %}{% if current_filters.date_range != 'all' %}&date_range={{ current_filters.date_range }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Previous</a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if current_filters.status != 'all' %}&status={{ current_filters.status }}{% endif %}{% if current_filters.collector != 'all' %}&collector={{ current_filters.collector }}{% endif %}{% if current_filters.date_range != 'all' %}&date_range={{ current_filters.date_range }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_filters.status != 'all' %}&status={{ current_filters.status }}{% endif %}{% if current_filters.collector != 'all' %}&collector={{ current_filters.collector }}{% endif %}{% if current_filters.date_range != 'all' %}&date_range={{ current_filters.date_range }}{% endif %}{% if current_filters.search %}&search={{ current_filters.search }}{% endif %}">Next</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No pickup requests found</h5>
+                    <p class="text-muted">Try adjusting your filters or check back later.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Pickup management functions
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.pickup-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkButtons();
+}
+
+function updateBulkButtons() {
+    const selectedCheckboxes = document.querySelectorAll('.pickup-checkbox:checked');
+    const bulkButtons = ['bulkDeleteBtn', 'bulkCompleteBtn', 'bulkCancelBtn'];
+    
+    bulkButtons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (selectedCheckboxes.length > 0) {
+            btn.style.display = 'inline-block';
+        } else {
+            btn.style.display = 'none';
+        }
+    });
+}
+
+function bulkAction(action) {
+    const selectedCheckboxes = document.querySelectorAll('.pickup-checkbox:checked');
+    const pickupIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+    
+    if (pickupIds.length === 0) {
+        alert('Please select at least one pickup.');
+        return;
+    }
+    
+    const actionText = action === 'delete' ? 'delete' : 
+                      action === 'mark_completed' ? 'mark as completed' : 'cancel';
+    
+    if (confirm(`Are you sure you want to ${actionText} ${pickupIds.length} pickup(s)?`)) {
+        fetch('{% url "admin_bulk_actions" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                action: action,
+                model_type: 'pickups',
+                item_ids: pickupIds
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message, 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert(data.error, 'error');
+            }
+        })
+        .catch(error => {
+            showAlert('An error occurred: ' + error.message, 'error');
+        });
+    }
+}
+
+function editPickup(id) {
+    // Navigate to pickup edit page
+    window.location.href = `/custom-admin/pickups/${id}/edit/`;
+}
+
+function viewPickupDetails(id) {
+    // Navigate to pickup details page
+    window.location.href = `/custom-admin/pickups/${id}/`;
+}
+
+function quickComplete(id) {
+    if (confirm('Mark this pickup as completed?')) {
+        bulkAction('mark_completed');
+    }
+}
+
+function exportPickups() {
+    window.open('{% url "admin_export_data" %}?type=pickups&format=csv', '_blank');
+}
+
+function refreshPickups() {
+    location.reload();
+}
+
+// Utility functions
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+function showAlert(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    const alertHTML = `
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" style="top: 20px; right: 20px; z-index: 9999;" role="alert">
+            <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 
+                               type === 'success' ? 'check-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', alertHTML);
+    
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

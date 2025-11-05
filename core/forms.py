@@ -243,3 +243,79 @@ class CollectorUpdateForm(forms.ModelForm):
             if weight > 1000:
                 raise ValidationError("Actual weight cannot exceed 1000 kg.")
         return weight
+
+
+class AdminPickupEditForm(forms.ModelForm):
+    """Admin form for editing pickup requests with additional fields"""
+    
+    class Meta:
+        model = PickupRequest
+        fields = [
+            'customer',
+            'collector',
+            'waste_category',
+            'estimated_weight_kg',
+            'actual_weight_kg',
+            'pickup_date',
+            'pickup_time',
+            'address',
+            'special_instructions',
+            'status'
+        ]
+        
+        widgets = {
+            'customer': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'collector': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'waste_category': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+            'estimated_weight_kg': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.1',
+                'min': '0.1',
+                'max': '1000',
+                'required': True
+            }),
+            'actual_weight_kg': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'step': '0.1',
+                'min': '0.1',
+                'max': '1000'
+            }),
+            'pickup_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+                'required': True
+            }),
+            'pickup_time': forms.TimeInput(attrs={
+                'class': 'form-control',
+                'type': 'time',
+                'required': True
+            }),
+            'address': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'required': True
+            }),
+            'special_instructions': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 2
+            }),
+            'status': forms.Select(attrs={
+                'class': 'form-select',
+                'required': True
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Filter users by role
+        self.fields['customer'].queryset = User.objects.filter(role='customer')
+        self.fields['collector'].queryset = User.objects.filter(role='collector')
+        self.fields['collector'].empty_label = "No collector assigned"
